@@ -832,12 +832,103 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <section className="grid gap-6 xl:grid-cols-[0.86fr_1.14fr]">
+      <section className="grid gap-6 xl:grid-cols-[0.82fr_1.18fr]">
+        <div className="space-y-6">
+          <SectionCard
+            tone="alert"
+            eyebrow="watchlist"
+            title="1. Alert — Site cần ưu tiên xử lý"
+            description="Nhìn ngay danh sách cần phản ứng trước để đội vận hành không bị loãng bởi toàn bộ danh mục."
+          >
+            <div className="space-y-3">
+              {watchlist.length === 0 ? (
+                <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-5 text-sm text-slate-400">Chưa có site nào vượt ngưỡng cảnh báo.</div>
+              ) : watchlist.map((row) => {
+                const meta = statusMeta(row.health)
+                return (
+                  <button key={row.site.id} type="button" onClick={() => setSelectedSite(row.site)} className={`w-full rounded-3xl border ${meta.border} bg-white/5 p-4 text-left transition hover:bg-white/10`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className={`h-2.5 w-2.5 rounded-full ${meta.dot}`} />
+                          <div className="font-medium text-white">{row.site.name}</div>
+                        </div>
+                        <div className="mt-1 text-sm text-slate-400">{row.region} • {row.cluster}</div>
+                      </div>
+                      <div className={`rounded-full px-3 py-1 text-xs ${meta.pill}`}>{meta.label}</div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-sm text-slate-300">
+                      <span>{formatMetric(row.currentPower)} W</span>
+                      <span>{formatMetric(row.energyToday, 2)} kWh hôm nay</span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            tone="default"
+            eyebrow="portfolio filters"
+            title="2. Action — Bộ lọc điều hành"
+            description="Chọn đúng khu vực, cụm dự án và mức độ ưu tiên trước khi ra quyết định thao tác."
+          >
+            <div className="grid gap-3 md:grid-cols-3">
+              <select className="input-control" value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)}>
+                <option value="all">Tất cả khu vực</option>
+                {availableRegions.map((region) => (
+                  <option key={region} value={region}>{region}</option>
+                ))}
+              </select>
+
+              <select className="input-control" value={clusterFilter} onChange={(e) => setClusterFilter(e.target.value)}>
+                <option value="all">Tất cả cụm</option>
+                {availableClusters.map((cluster) => (
+                  <option key={cluster} value={cluster}>{cluster}</option>
+                ))}
+              </select>
+
+              <select className="input-control" value={healthFilter} onChange={(e) => setHealthFilter(e.target.value as 'all' | SiteHealth)}>
+                <option value="all">Tất cả trạng thái</option>
+                <option value="healthy">Vận hành tốt</option>
+                <option value="warning">Cần theo dõi</option>
+                <option value="critical">Cần xử lý</option>
+              </select>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            eyebrow="cluster ranking"
+            title="3. Context — Xếp hạng cụm dự án"
+            description="Đặt cảnh báo vào đúng bối cảnh bằng việc xem cụm nào đang kéo hiệu suất và cụm nào tụt lại."
+          >
+            <div className="space-y-3">
+              {clusterRanking.slice(0, 5).map((cluster, index) => (
+                <div key={cluster.cluster} className="flex items-center justify-between gap-3 rounded-3xl border border-white/10 bg-white/5 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-400/10 text-sm font-semibold text-cyan-300">
+                      #{index + 1}
+                    </div>
+                    <div>
+                      <div className="font-medium text-white">{cluster.cluster}</div>
+                      <div className="text-sm text-slate-400">{cluster.sites} site • online share {cluster.onlineShare}%</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold text-white">{formatMetric(cluster.totalPower)} W</div>
+                    <div className="text-sm text-slate-400">{formatMetric(cluster.avgEnergy, 2)} kWh/site</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        </div>
+
         <SectionCard
           tone="ops"
           eyebrow="top sites"
-          title="Bảng điều hành đa site"
-          description="Tổng hợp theo site để đội điều hành nhìn thấy trạng thái, khu vực và sản lượng trong một bảng duy nhất."
+          title="4. Monitor — Bảng điều hành đa site"
+          description="Sau khi lọc và xác định ưu tiên, xem nhanh từng site để chọn điểm cần drill-down."
         >
           <div className="space-y-3">
             {topSites.map((row) => {
@@ -888,75 +979,14 @@ export default function DashboardPage() {
             })}
           </div>
         </SectionCard>
-
-        <div className="space-y-6">
-          <SectionCard
-            eyebrow="cluster ranking"
-            title="Xếp hạng hiệu quả theo cụm dự án"
-            description="Nhìn top cụm nào đang kéo công suất và cụm nào cần can thiệp sớm."
-          >
-            <div className="space-y-3">
-              {clusterRanking.slice(0, 5).map((cluster, index) => (
-                <div key={cluster.cluster} className="flex items-center justify-between gap-3 rounded-3xl border border-white/10 bg-white/5 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-400/10 text-sm font-semibold text-cyan-300">
-                      #{index + 1}
-                    </div>
-                    <div>
-                      <div className="font-medium text-white">{cluster.cluster}</div>
-                      <div className="text-sm text-slate-400">{cluster.sites} site • online share {cluster.onlineShare}%</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-white">{formatMetric(cluster.totalPower)} W</div>
-                    <div className="text-sm text-slate-400">{formatMetric(cluster.avgEnergy, 2)} kWh/site</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            tone="alert"
-            eyebrow="watchlist"
-            title="Site cần ưu tiên xử lý"
-            description="Danh sách ngắn để đội vận hành nhìn vào là biết nên làm gì tiếp theo."
-          >
-            <div className="space-y-3">
-              {watchlist.length === 0 ? (
-                <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-5 text-sm text-slate-400">Chưa có site nào vượt ngưỡng cảnh báo.</div>
-              ) : watchlist.map((row) => {
-                const meta = statusMeta(row.health)
-                return (
-                  <button key={row.site.id} type="button" onClick={() => setSelectedSite(row.site)} className={`w-full rounded-3xl border ${meta.border} bg-white/5 p-4 text-left transition hover:bg-white/10`}>
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className={`h-2.5 w-2.5 rounded-full ${meta.dot}`} />
-                          <div className="font-medium text-white">{row.site.name}</div>
-                        </div>
-                        <div className="mt-1 text-sm text-slate-400">{row.region} • {row.cluster}</div>
-                      </div>
-                      <div className={`rounded-full px-3 py-1 text-xs ${meta.pill}`}>{meta.label}</div>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between text-sm text-slate-300">
-                      <span>{formatMetric(row.currentPower)} W</span>
-                      <span>{formatMetric(row.energyToday, 2)} kWh hôm nay</span>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </SectionCard>
-        </div>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[0.86fr_1.14fr]">
         <SectionCard
           tone="data"
           eyebrow="data sources"
-          title="Nguồn dữ liệu thật & importer"
-          description="Ưu tiên đưa dữ liệu nền vào hệ thống trước, rồi mới nối credential portal cho telemetry thật theo vendor."
+          title="5. Data — Nguồn dữ liệu thật & importer"
+          description="Khối cuối cho phần ingest và nền dữ liệu, tách khỏi luồng điều hành chính để màn hình đỡ rối."
         >
           <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
             <div className="space-y-3">
@@ -1113,48 +1143,6 @@ export default function DashboardPage() {
           </div>
         </SectionCard>
       </section>
-
-      <SectionCard
-        tone="default"
-        eyebrow="portfolio filters"
-        title="Bộ lọc điều hành"
-        description="Lọc nhanh theo khu vực, cụm dự án và mức độ ưu tiên để tập trung đúng nhóm site."
-      >
-        <div className="grid gap-3 md:grid-cols-3">
-          <select
-            className="input-control"
-            value={regionFilter}
-            onChange={(e) => setRegionFilter(e.target.value)}
-          >
-            <option value="all">Tất cả khu vực</option>
-            {availableRegions.map((region) => (
-              <option key={region} value={region}>{region}</option>
-            ))}
-          </select>
-
-          <select
-            className="input-control"
-            value={clusterFilter}
-            onChange={(e) => setClusterFilter(e.target.value)}
-          >
-            <option value="all">Tất cả cụm</option>
-            {availableClusters.map((cluster) => (
-              <option key={cluster} value={cluster}>{cluster}</option>
-            ))}
-          </select>
-
-          <select
-            className="input-control"
-            value={healthFilter}
-            onChange={(e) => setHealthFilter(e.target.value as 'all' | SiteHealth)}
-          >
-            <option value="all">Tất cả trạng thái</option>
-            <option value="healthy">Vận hành tốt</option>
-            <option value="warning">Cần theo dõi</option>
-            <option value="critical">Cần xử lý</option>
-          </select>
-        </div>
-      </SectionCard>
 
       <SectionCard
         tone="ops"
