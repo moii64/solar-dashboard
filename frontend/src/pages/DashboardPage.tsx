@@ -708,8 +708,8 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <section className="panel-scanline overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900/70 p-6 shadow-2xl shadow-black/20 backdrop-blur-xl">
-        <div className="grid gap-6 lg:grid-cols-[1.35fr_0.85fr] lg:items-end">
+      <section className="panel-scanline overflow-hidden rounded-xl border border-white/10 bg-slate-900/85 p-5 md:p-6 shadow-xl shadow-black/20">
+        <div className="grid gap-5 lg:grid-cols-[1.35fr_0.85fr] lg:items-end">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-cyan-300">
               <span className={`h-2 w-2 rounded-full ${realtimeState === 'live' ? 'bg-emerald-400 animate-pulse' : realtimeState === 'connecting' ? 'bg-amber-400 animate-pulse' : 'bg-rose-400'}`} />
@@ -744,23 +744,23 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-              <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Khu vực dẫn đầu</div>
-              <div className="mt-3 text-xl font-semibold text-white">{overview.bestRegion}</div>
-              <div className="mt-2 text-sm text-slate-400">Dẫn đầu theo công suất hiện tại toàn danh mục</div>
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+              <div className="text-xs uppercase tracking-[0.14em] text-slate-500">Khu vực dẫn đầu</div>
+              <div className="mt-2 text-lg font-semibold text-white">{overview.bestRegion}</div>
+              <div className="mt-1 text-sm text-slate-400">Dẫn đầu theo công suất hiện tại toàn danh mục</div>
             </div>
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-              <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Realtime fabric</div>
-              <div className="mt-3 flex items-center gap-2 text-xl font-semibold text-white">
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+              <div className="text-xs uppercase tracking-[0.14em] text-slate-500">Realtime fabric</div>
+              <div className="mt-2 flex items-center gap-2 text-lg font-semibold text-white">
                 <span className={`inline-flex h-2.5 w-2.5 rounded-full ${realtimeState === 'live' ? 'bg-emerald-400 animate-pulse' : realtimeState === 'connecting' ? 'bg-amber-400 animate-pulse' : 'bg-rose-400'}`} />
                 {realtimeState === 'live' ? 'LIVE' : realtimeState === 'connecting' ? 'Đang nối' : 'Mất kết nối'}
               </div>
-              <div className="mt-2 text-sm text-slate-400">Cập nhật gần nhất {formatSyncTime(lastUpdated)}</div>
+              <div className="mt-1 text-sm text-slate-400">Cập nhật gần nhất {formatSyncTime(lastUpdated)}</div>
             </div>
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-              <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Điểm sức khoẻ danh mục</div>
-              <div className="mt-3 text-xl font-semibold text-white">{overview.healthScore}%</div>
-              <div className="mt-2 text-sm text-slate-400">{overview.healthySites} site tốt • {overview.criticalSites} site cần xử lý</div>
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+              <div className="text-xs uppercase tracking-[0.14em] text-slate-500">Điểm sức khoẻ danh mục</div>
+              <div className="mt-2 text-lg font-semibold text-white">{overview.healthScore}%</div>
+              <div className="mt-1 text-sm text-slate-400">{overview.healthySites} site tốt • {overview.criticalSites} site cần xử lý</div>
             </div>
           </div>
         </div>
@@ -842,7 +842,7 @@ export default function DashboardPage() {
           >
             <div className="space-y-3">
               {watchlist.length === 0 ? (
-                <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-5 text-sm text-slate-400">Chưa có site nào vượt ngưỡng cảnh báo.</div>
+                <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.04] p-4 text-sm text-slate-400">Chưa có site nào vượt ngưỡng cảnh báo.</div>
               ) : watchlist.map((row) => {
                 const meta = statusMeta(row.health)
                 return (
