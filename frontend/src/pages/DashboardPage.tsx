@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
 import axios from 'axios'
 import SiteDetailPanel from '../components/SiteDetailPanel'
+import InverterModelForm from '../components/InverterModelForm'
 
 const Chart = lazy(() => import('./ChartComponent'))
 const MapComponent = lazy(() => import('./MapComponent'))
@@ -689,19 +690,19 @@ export default function DashboardPage() {
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <button
-                className="rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+                className="btn-primary"
                 onClick={() => Promise.all([fetchSites(), fetchStatsOverview(), fetchSourceData(), selectedSite ? fetchSiteHistory(selectedSite.id) : Promise.resolve()])}
               >
                 Làm mới control center
               </button>
               <button
-                className="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+                className="btn-ghost"
                 onClick={() => setShowAddForm((value) => !value)}
               >
                 {showAddForm ? 'Đóng form thêm site' : 'Thêm site mới'}
               </button>
               <button
-                className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 text-sm font-medium text-emerald-200 transition hover:bg-emerald-400/15"
+                className="btn-success"
                 onClick={() => setShowSourceTools((value) => !value)}
               >
                 {showSourceTools ? 'Ẩn data sources' : 'Mở data sources'}
@@ -729,22 +730,24 @@ export default function DashboardPage() {
         </div>
       </section>
 
+      <InverterModelForm />
+
       {showAddForm && (
-        <form onSubmit={handleAddSite} className="grid grid-cols-1 gap-3 rounded-[1.75rem] border border-white/10 bg-slate-900/70 p-5 backdrop-blur md:grid-cols-2">
-          <input className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500" placeholder="Tên site *" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-          <input className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500" placeholder="Vị trí / tỉnh thành" value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} />
-          <input className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500" placeholder="Latitude" value={formData.latitude} onChange={(e) => setFormData({ ...formData, latitude: e.target.value })} />
-          <input className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500" placeholder="Longitude" value={formData.longitude} onChange={(e) => setFormData({ ...formData, longitude: e.target.value })} />
-          <input className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500" placeholder="IP collector / gateway" value={formData.ip_address} onChange={(e) => setFormData({ ...formData, ip_address: e.target.value })} />
-          <select className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none" value={formData.device_type} onChange={(e) => setFormData({ ...formData, device_type: e.target.value })}>
+        <form onSubmit={handleAddSite} className="glass-panel grid grid-cols-1 gap-3 p-5 md:grid-cols-2">
+          <input className="input-control" placeholder="Tên site *" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+          <input className="input-control" placeholder="Vị trí / tỉnh thành" value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} />
+          <input className="input-control" placeholder="Latitude" value={formData.latitude} onChange={(e) => setFormData({ ...formData, latitude: e.target.value })} />
+          <input className="input-control" placeholder="Longitude" value={formData.longitude} onChange={(e) => setFormData({ ...formData, longitude: e.target.value })} />
+          <input className="input-control" placeholder="IP collector / gateway" value={formData.ip_address} onChange={(e) => setFormData({ ...formData, ip_address: e.target.value })} />
+          <select className="input-control" value={formData.device_type} onChange={(e) => setFormData({ ...formData, device_type: e.target.value })}>
             <option value="generic">Generic</option>
             <option value="solaredge">SolarEdge</option>
             <option value="sungrow">Sungrow</option>
             <option value="goodwe">GoodWe</option>
           </select>
           <div className="flex gap-2 md:col-span-2">
-            <button className="rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950">Lưu site</button>
-            <button type="button" className="rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-medium text-white" onClick={() => setShowAddForm(false)}>Huỷ</button>
+            <button className="btn-primary">Lưu site</button>
+            <button type="button" className="btn-ghost" onClick={() => setShowAddForm(false)}>Huỷ</button>
           </div>
         </form>
       )}
@@ -935,21 +938,21 @@ export default function DashboardPage() {
                   <div className="mt-1 text-sm text-slate-400">Dùng URL thật là tiện nhất. File path vẫn hỗ trợ cho backend/container khi cần nạp dữ liệu cục bộ.</div>
                   <div className="mt-4 space-y-3">
                     <input
-                      className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500"
+                      className="input-control w-full"
                       placeholder="URL CSV/ZIP extract của EnergyData"
                       value={importForm.source_url}
                       onChange={(e) => setImportForm((prev) => ({ ...prev, source_url: e.target.value }))}
                     />
 
                     <input
-                      className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500"
+                      className="input-control w-full"
                       placeholder="File path nội bộ backend (advanced)"
                       value={importForm.file_path}
                       onChange={(e) => setImportForm((prev) => ({ ...prev, file_path: e.target.value }))}
                     />
                     <div className="flex flex-col gap-3 md:flex-row">
                       <input
-                        className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-slate-500 md:w-40"
+                        className="input-control md:w-40"
                         placeholder="Limit"
                         value={importForm.limit}
                         onChange={(e) => setImportForm((prev) => ({ ...prev, limit: e.target.value }))}
@@ -957,7 +960,7 @@ export default function DashboardPage() {
                       <button
                         type="submit"
                         disabled={importLoading}
-                        className="rounded-full bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="btn-success disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {importLoading ? 'Đang import...' : 'Chạy importer'}
                       </button>
@@ -1066,7 +1069,7 @@ export default function DashboardPage() {
       >
         <div className="grid gap-3 md:grid-cols-3">
           <select
-            className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none"
+            className="input-control"
             value={regionFilter}
             onChange={(e) => setRegionFilter(e.target.value)}
           >
@@ -1077,7 +1080,7 @@ export default function DashboardPage() {
           </select>
 
           <select
-            className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none"
+            className="input-control"
             value={clusterFilter}
             onChange={(e) => setClusterFilter(e.target.value)}
           >
@@ -1088,7 +1091,7 @@ export default function DashboardPage() {
           </select>
 
           <select
-            className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none"
+            className="input-control"
             value={healthFilter}
             onChange={(e) => setHealthFilter(e.target.value as 'all' | SiteHealth)}
           >
@@ -1105,7 +1108,7 @@ export default function DashboardPage() {
         title="Bảng điều hành toàn mạng"
         description="Phiên bản gọn để nhìn toàn bộ site theo vùng, trạng thái và công suất hiện tại trên cùng một màn hình."
       >
-        <div className="overflow-x-auto">
+        <div className="table-shell overflow-x-auto">
           <table className="min-w-full divide-y divide-white/10 text-sm">
             <thead>
               <tr className="text-left text-slate-500">
@@ -1122,7 +1125,7 @@ export default function DashboardPage() {
               {filteredSiteRows.map((row) => {
                 const meta = statusMeta(row.health)
                 return (
-                  <tr key={row.site.id} className="transition hover:bg-white/[0.03]">
+                  <tr key={row.site.id} className="transition hover:bg-cyan-400/[0.08]">
                     <td className="px-3 py-4">
                       <button type="button" className="text-left" onClick={() => setSelectedSite(row.site)}>
                         <div className="font-medium text-white">{row.site.name}</div>
@@ -1137,7 +1140,7 @@ export default function DashboardPage() {
                     <td className="px-3 py-4 text-white">{formatMetric(row.currentPower)} W</td>
                     <td className="px-3 py-4 text-white">{formatMetric(row.energyToday, 2)} kWh</td>
                     <td className="px-3 py-4">
-                      <button type="button" onClick={() => handleDeleteSite(row.site.id)} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-rose-300 transition hover:bg-rose-500/10">
+                      <button type="button" onClick={() => handleDeleteSite(row.site.id)} className="rounded-full border border-rose-400/25 bg-rose-400/10 px-3 py-1 text-xs font-medium text-rose-200 transition hover:bg-rose-400/20">
                         Xoá
                       </button>
                     </td>
