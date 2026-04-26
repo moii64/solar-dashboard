@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "api.py"
+    }
+  ],
+  "env": {
+    "DATABASE_URL": "sqlite:////tmp/solar.db",
+    "ENABLE_MQTT_CONSUMER": "0",
+    "ENABLE_BACKGROUND_TELEMETRY": "0"
+  }
+}

@@ -1,0 +1,83 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: solar_user
+      POSTGRES_PASSWORD: solar_pass
+      POSTGRES_DB: solar_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mqtt_data:/mosquitto/data
+      - mqtt_log:/mosquitto/log
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    image: solar-backend:latest
+    env_file:
+      - .env
+    environment:
+      ENABLE_BACKGROUND_TELEMETRY: "0"
+      ENABLE_MQTT_CONSUMER: "1"
+      MQTT_BROKER: mqtt
+      MQTT_PORT: "1883"
+      MQTT_TOPIC: solar/inverters/#
+    depends_on:
+      - redis
+      - db
+      - mqtt
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  simulator:
+    build:
+      context: ./backend
+    image: solar-simulator:latest
+    env_file:
+      - .env
+    environment:
+      API_BASE_URL: http://backend:8000
+      SIMULATOR_MODBUS_HOST: 0.0.0.0
+      SIMULATOR_IP_ADDRESS: simulator-modbus
+    command: ["python", "simulator.py"]
+    depends_on:
+      - backend
+    ports:
+      - "5020:5020"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    image: solar-frontend:latest
+    env_file:
+      - .env
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  mqtt_data:
+  mqtt_log:
