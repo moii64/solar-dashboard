@@ -154,10 +154,29 @@ function OverviewMetric({
   )
 }
 
-function SectionCard({ title, eyebrow, description, children }: { title: string; eyebrow: string; description?: string; children: React.ReactNode }) {
+function SectionCard({
+  title,
+  eyebrow,
+  description,
+  children,
+  tone = 'default',
+}: {
+  title: string
+  eyebrow: string
+  description?: string
+  children: React.ReactNode
+  tone?: 'default' | 'ops' | 'alert' | 'data'
+}) {
+  const toneClass = {
+    default: '',
+    ops: 'section-shell--ops',
+    alert: 'section-shell--alert',
+    data: 'section-shell--data',
+  }[tone]
+
   return (
-    <section className="rounded-[1.75rem] border border-white/10 bg-slate-900/70 p-5 shadow-xl shadow-black/10 backdrop-blur">
-      <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+    <section className={`section-shell ${toneClass}`}>
+      <div className="section-title-row">
         <div>
           <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{eyebrow}</div>
           <h3 className="mt-1 text-xl font-semibold text-white">{title}</h3>
@@ -769,15 +788,19 @@ export default function DashboardPage() {
         </form>
       )}
 
-      <section className="scada-grid md:grid-cols-2 xl:grid-cols-4">
-        <OverviewMetric label="Tổng site" value={String(overview.totalSites)} hint={`${overview.healthySites} site vận hành tốt`} accent="emerald" />
-        <OverviewMetric label="Công suất toàn danh mục" value={`${formatMetric(overview.totalPower)} W`} hint="Tổng công suất tức thời toàn mạng" accent="cyan" />
-        <OverviewMetric label="Sản lượng hôm nay" value={`${formatMetric(overview.totalEnergy, 2)} kWh`} hint="Tổng sản lượng theo dữ liệu live mới nhất" accent="amber" />
-        <OverviewMetric label="Site cần chú ý" value={String(overview.watchSites + overview.criticalSites)} hint={`${overview.criticalSites} site mức ưu tiên cao`} accent="violet" />
+      <section className="space-y-4">
+        <div className="kpi-divider" />
+        <div className="scada-grid md:grid-cols-2 xl:grid-cols-4">
+          <OverviewMetric label="Tổng site" value={String(overview.totalSites)} hint={`${overview.healthySites} site vận hành tốt`} accent="emerald" />
+          <OverviewMetric label="Công suất toàn danh mục" value={`${formatMetric(overview.totalPower)} W`} hint="Tổng công suất tức thời toàn mạng" accent="cyan" />
+          <OverviewMetric label="Sản lượng hôm nay" value={`${formatMetric(overview.totalEnergy, 2)} kWh`} hint="Tổng sản lượng theo dữ liệu live mới nhất" accent="amber" />
+          <OverviewMetric label="Site cần chú ý" value={String(overview.watchSites + overview.criticalSites)} hint={`${overview.criticalSites} site mức ưu tiên cao`} accent="violet" />
+        </div>
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
         <SectionCard
+          tone="ops"
           eyebrow="Tổng quan vận hành"
           title="Bản đồ & Tình trạng site"
           description="Theo dõi trạng thái các site trên bản đồ, lọc theo khu vực, cụm dự án và sức khỏe để có cái nhìn tổng quát."
@@ -811,6 +834,7 @@ export default function DashboardPage() {
 
       <section className="grid gap-6 xl:grid-cols-[0.86fr_1.14fr]">
         <SectionCard
+          tone="ops"
           eyebrow="top sites"
           title="Bảng điều hành đa site"
           description="Tổng hợp theo site để đội điều hành nhìn thấy trạng thái, khu vực và sản lượng trong một bảng duy nhất."
@@ -893,6 +917,7 @@ export default function DashboardPage() {
           </SectionCard>
 
           <SectionCard
+            tone="alert"
             eyebrow="watchlist"
             title="Site cần ưu tiên xử lý"
             description="Danh sách ngắn để đội vận hành nhìn vào là biết nên làm gì tiếp theo."
@@ -928,6 +953,7 @@ export default function DashboardPage() {
 
       <section className="grid gap-6 xl:grid-cols-[0.86fr_1.14fr]">
         <SectionCard
+          tone="data"
           eyebrow="data sources"
           title="Nguồn dữ liệu thật & importer"
           description="Ưu tiên đưa dữ liệu nền vào hệ thống trước, rồi mới nối credential portal cho telemetry thật theo vendor."
@@ -1089,6 +1115,7 @@ export default function DashboardPage() {
       </section>
 
       <SectionCard
+        tone="default"
         eyebrow="portfolio filters"
         title="Bộ lọc điều hành"
         description="Lọc nhanh theo khu vực, cụm dự án và mức độ ưu tiên để tập trung đúng nhóm site."
@@ -1130,6 +1157,7 @@ export default function DashboardPage() {
       </SectionCard>
 
       <SectionCard
+        tone="ops"
         eyebrow="operations table"
         title="Bảng điều hành toàn mạng"
         description="Phiên bản gọn để nhìn toàn bộ site theo vùng, trạng thái và công suất hiện tại trên cùng một màn hình."

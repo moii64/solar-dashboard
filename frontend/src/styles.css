@@ -70,6 +70,30 @@ select {
   .table-shell {
     @apply overflow-hidden rounded-3xl border border-white/10 bg-slate-950/45;
   }
+
+  .section-shell {
+    @apply rounded-[1.75rem] border border-white/10 bg-slate-900/65 p-5 shadow-xl shadow-black/10 backdrop-blur;
+  }
+
+  .section-shell--ops {
+    @apply border-cyan-300/20 bg-cyan-500/[0.06] shadow-cyan-950/30;
+  }
+
+  .section-shell--alert {
+    @apply border-amber-300/20 bg-amber-500/[0.05] shadow-amber-950/20;
+  }
+
+  .section-shell--data {
+    @apply border-emerald-300/20 bg-emerald-500/[0.05] shadow-emerald-950/20;
+  }
+
+  .section-title-row {
+    @apply mb-4 flex flex-col gap-2 border-b border-white/10 pb-3 md:flex-row md:items-end md:justify-between;
+  }
+
+  .kpi-divider {
+    @apply h-px w-full bg-gradient-to-r from-transparent via-white/15 to-transparent;
+  }
 }
 
 @layer utilities {
