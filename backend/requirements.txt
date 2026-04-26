@@ -1,7 +1,7 @@
 # FastAPI + SQLAlchemy + MQTT consumer
 
 fastapi>=0.110.0
-uvicorn>=0.27.0
+uvicorn[standard]>=0.27.0
 sqlalchemy>=2.0.25
 psycopg[binary]>=3.2.0
 pydantic>=2.5.0
