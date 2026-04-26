@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'rea
 import axios from 'axios'
 import SiteDetailPanel from '../components/SiteDetailPanel'
 import InverterModelForm from '../components/InverterModelForm'
+import { IconBolt, IconBattery, IconSun, IconThermometer, IconActivity, IconFilter, IconTrash, IconRefresh, IconPlus, IconArrowRight, IconCheckCircle, IconAlertTriangle, IconXCircle } from '../components/Icons'
 
 const Chart = lazy(() => import('./ChartComponent'))
 const MapComponent = lazy(() => import('./MapComponent'))
@@ -131,21 +132,23 @@ function OverviewMetric({
     violet: 'from-violet-400/20 to-violet-500/5 text-violet-300 border-violet-300/15',
   }[accent]
 
-  const icon = {
-    emerald: '⚡',
-    cyan: '🔋',
-    amber: '☀️',
-    violet: '🧭',
+  const IconComponent = {
+    emerald: IconBolt,
+    cyan: IconBattery,
+    amber: IconSun,
+    violet: IconActivity,
   }[accent]
 
   return (
-    <div className={`group relative overflow-hidden rounded-3xl border bg-gradient-to-br ${accentClass} p-6 shadow-xl shadow-black/15 transition duration-300 hover:-translate-y-0.5 hover:shadow-cyan-500/10`}>
+    <div className={`group relative overflow-hidden rounded-3xl border bg-gradient-to-br ${accentClass} p-5 md:p-6 shadow-xl shadow-black/15 transition duration-300 hover:-translate-y-0.5 hover:shadow-cyan-500/10`}>
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-60" />
       <div className="flex items-start justify-between gap-3">
         <div className="text-xs uppercase tracking-[0.18em] text-slate-400">{label}</div>
-        <div className="rounded-2xl border border-white/10 bg-black/15 px-2 py-1 text-sm">{icon}</div>
+        <div className="flex h-8 w-8 items-center justify-center rounded-2xl border border-white/10 bg-black/20">
+          <IconComponent size={16} className="text-slate-300" />
+        </div>
       </div>
-      <div className="mt-4 text-3xl font-semibold tracking-tight text-white md:text-[2rem]">{value}</div>
+      <div className="mt-4 text-2xl font-semibold tracking-tight text-white md:text-[2rem]">{value}</div>
       <div className="mt-2 text-sm text-slate-300">{hint}</div>
     </div>
   )
@@ -835,15 +838,24 @@ export default function DashboardPage() {
                   </div>
                   <div className="mt-4 grid grid-cols-3 gap-2 text-sm md:gap-3">
                     <div className="rounded-2xl bg-slate-950/70 p-3">
-                      <div className="text-slate-500">⚡ Power</div>
+                      <div className="flex items-center gap-1.5 text-slate-500">
+                        <IconBolt size={14} className="text-cyan-400" />
+                        <span>Power</span>
+                      </div>
                       <div className="mt-1 font-semibold text-white">{formatMetric(row.currentPower)} W</div>
                     </div>
                     <div className="rounded-2xl bg-slate-950/70 p-3">
-                      <div className="text-slate-500">🔋 Energy</div>
+                      <div className="flex items-center gap-1.5 text-slate-500">
+                        <IconBattery size={14} className="text-emerald-400" />
+                        <span>Energy</span>
+                      </div>
                       <div className="mt-1 font-semibold text-white">{formatMetric(row.energyToday, 2)} kWh</div>
                     </div>
                     <div className="rounded-2xl bg-slate-950/70 p-3">
-                      <div className="text-slate-500">🌡️ Temp</div>
+                      <div className="flex items-center gap-1.5 text-slate-500">
+                        <IconThermometer size={14} className="text-amber-400" />
+                        <span>Temp</span>
+                      </div>
                       <div className="mt-1 font-semibold text-white">{row.temperature !== null ? `${formatMetric(row.temperature, 1)} °C` : '--'}</div>
                     </div>
                   </div>
@@ -1151,11 +1163,22 @@ export default function DashboardPage() {
                     <td className="px-3 py-4">
                       <span className={`inline-flex rounded-full px-3 py-1 text-xs ${meta.pill}`}>{meta.label}</span>
                     </td>
-                    <td className="px-3 py-4 text-white">⚡ {formatMetric(row.currentPower)} W</td>
-                    <td className="px-3 py-4 text-white">🔋 {formatMetric(row.energyToday, 2)} kWh</td>
                     <td className="px-3 py-4">
-                      <button type="button" onClick={() => handleDeleteSite(row.site.id)} className="rounded-full border border-rose-400/25 bg-rose-400/10 px-3 py-1 text-xs font-medium text-rose-200 transition hover:bg-rose-400/20">
-                        Xoá
+                      <div className="flex items-center gap-1.5 text-white">
+                        <IconBolt size={14} className="text-cyan-400" />
+                        <span>{formatMetric(row.currentPower)} W</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-4">
+                      <div className="flex items-center gap-1.5 text-white">
+                        <IconBattery size={14} className="text-emerald-400" />
+                        <span>{formatMetric(row.energyToday, 2)} kWh</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-4">
+                      <button type="button" onClick={() => handleDeleteSite(row.site.id)} className="flex items-center gap-1.5 rounded-full border border-rose-400/25 bg-rose-400/10 px-3 py-1.5 text-xs font-medium text-rose-200 transition hover:bg-rose-400/20">
+                        <IconTrash size={12} />
+                        <span>Xoá</span>
                       </button>
                     </td>
                   </tr>
