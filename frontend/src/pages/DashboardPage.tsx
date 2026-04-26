@@ -281,6 +281,8 @@ export default function DashboardPage() {
   const [regionFilter, setRegionFilter] = useState<string>('all')
   const [clusterFilter, setClusterFilter] = useState<string>('all')
   const [healthFilter, setHealthFilter] = useState<'all' | SiteHealth>('all')
+  const [activeTab, setActiveTab] = useState<'overview' | 'details'>('overview')
+  const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | '60d'>('7d')
   const [formData, setFormData] = useState<FormData>({
     name: '',
     location: '',
@@ -698,6 +700,18 @@ export default function DashboardPage() {
     [historyPoints],
   )
 
+  const recentRequests = useMemo(() => (
+    [...filteredSiteRows]
+      .sort((a, b) => new Date(b.latest?.timestamp || 0).getTime() - new Date(a.latest?.timestamp || 0).getTime())
+      .slice(0, 8)
+      .map((row) => ({
+        id: row.site.id,
+        model: row.site.device_type || 'generic',
+        inOut: `${Math.round(row.currentPower)}W / ${row.temperature !== null ? `${Math.round(row.temperature)}°C` : '--'}`,
+        when: row.latest?.timestamp ? formatSyncTime(row.latest.timestamp) : '--:--',
+      }))
+  ), [filteredSiteRows])
+
   if (loading) {
     return <div className="rounded-3xl border border-white/10 bg-slate-900/70 p-6 text-slate-300">Đang tải control center...</div>
   }
@@ -788,17 +802,81 @@ export default function DashboardPage() {
         </form>
       )}
 
-      <section className="space-y-4">
-        <div className="kpi-divider" />
-        <div className="scada-grid md:grid-cols-2 xl:grid-cols-4">
-          <OverviewMetric label="Tổng site" value={String(overview.totalSites)} hint={`${overview.healthySites} site vận hành tốt`} accent="emerald" />
-          <OverviewMetric label="Công suất toàn danh mục" value={`${formatMetric(overview.totalPower)} W`} hint="Tổng công suất tức thời toàn mạng" accent="cyan" />
-          <OverviewMetric label="Sản lượng hôm nay" value={`${formatMetric(overview.totalEnergy, 2)} kWh`} hint="Tổng sản lượng theo dữ liệu live mới nhất" accent="amber" />
-          <OverviewMetric label="Site cần chú ý" value={String(overview.watchSites + overview.criticalSites)} hint={`${overview.criticalSites} site mức ưu tiên cao`} accent="violet" />
+      <section className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex rounded-xl border border-white/10 bg-white/5 p-1">
+            <button onClick={() => setActiveTab('overview')} className={`rounded-lg px-3 py-1.5 text-sm ${activeTab === 'overview' ? 'bg-white text-slate-900' : 'text-slate-300'}`}>Overview</button>
+            <button onClick={() => setActiveTab('details')} className={`rounded-lg px-3 py-1.5 text-sm ${activeTab === 'details' ? 'bg-white text-slate-900' : 'text-slate-300'}`}>Details</button>
+          </div>
+          <div className="inline-flex rounded-xl border border-white/10 bg-white/5 p-1">
+            {(['24h', '7d', '30d', '60d'] as const).map((range) => (
+              <button key={range} onClick={() => setTimeRange(range)} className={`rounded-lg px-3 py-1.5 text-xs uppercase ${timeRange === range ? 'bg-cyan-300 text-slate-900' : 'text-slate-300'}`}>{range}</button>
+            ))}
+          </div>
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+      {activeTab === 'overview' ? (
+        <>
+          <section className="space-y-4">
+            <div className="kpi-divider" />
+            <div className="scada-grid md:grid-cols-2 xl:grid-cols-4">
+              <OverviewMetric label="Total Requests" value={formatMetric(overview.totalSites)} hint={`${overview.healthySites} active nodes`} accent="emerald" />
+              <OverviewMetric label="Input Power" value={`${formatMetric(overview.totalPower)} W`} hint="Current total portfolio power" accent="cyan" />
+              <OverviewMetric label="Output Energy" value={`${formatMetric(overview.totalEnergy, 2)} kWh`} hint="Energy today across all sites" accent="amber" />
+              <OverviewMetric label="Est. Health" value={`${overview.healthScore}%`} hint="Estimated portfolio reliability" accent="violet" />
+            </div>
+          </section>
+
+          <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+            <SectionCard tone="ops" eyebrow="network graph" title="Provider / Site Flow" description="Luồng vận hành giữa danh mục site và control center.">
+              <div className="h-[52vh]">
+                <Suspense fallback={<div className="flex h-full items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/5 text-slate-400">Đang tải sơ đồ...</div>}>
+                  <MapComponent siteRows={filteredSiteRows} onSiteClick={(siteId) => {
+                    const matched = filteredSiteRows.find((row) => row.site.id === siteId)?.site ?? null
+                    setSelectedSite(matched)
+                  }} selectedSiteId={selectedSite?.id || null} />
+                </Suspense>
+              </div>
+            </SectionCard>
+
+            <SectionCard tone="default" eyebrow="recent requests" title="Recent Requests" description="Bản ghi truy vấn gần nhất theo từng site.">
+              <div className="table-shell overflow-hidden">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="table-head text-left">
+                      <th className="px-3 py-2">Model</th>
+                      <th className="px-3 py-2">In / Out</th>
+                      <th className="px-3 py-2">When</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {recentRequests.map((req) => (
+                      <tr key={req.id} className="table-row-striped">
+                        <td className="px-3 py-2 text-white">{req.model}</td>
+                        <td className="px-3 py-2 text-slate-300">{req.inOut}</td>
+                        <td className="px-3 py-2 text-slate-400">{req.when}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </SectionCard>
+          </section>
+        </>
+      ) : (
+        <>
+          <section className="space-y-4">
+            <div className="kpi-divider" />
+            <div className="scada-grid md:grid-cols-2 xl:grid-cols-4">
+              <OverviewMetric label="Tổng site" value={String(overview.totalSites)} hint={`${overview.healthySites} site vận hành tốt`} accent="emerald" />
+              <OverviewMetric label="Công suất toàn danh mục" value={`${formatMetric(overview.totalPower)} W`} hint="Tổng công suất tức thời toàn mạng" accent="cyan" />
+              <OverviewMetric label="Sản lượng hôm nay" value={`${formatMetric(overview.totalEnergy, 2)} kWh`} hint="Tổng sản lượng theo dữ liệu live mới nhất" accent="amber" />
+              <OverviewMetric label="Site cần chú ý" value={String(overview.watchSites + overview.criticalSites)} hint={`${overview.criticalSites} site mức ưu tiên cao`} accent="violet" />
+            </div>
+          </section>
+
+          <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
         <SectionCard
           tone="ops"
           eyebrow="Tổng quan vận hành"
@@ -1205,6 +1283,8 @@ export default function DashboardPage() {
           </table>
         </div>
       </SectionCard>
+        </>
+      )}
     </div>
   )
 }
