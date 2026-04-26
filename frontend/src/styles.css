@@ -1,3 +1,5 @@
+@import "bootstrap/dist/css/bootstrap.min.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -93,6 +95,78 @@ select {
 
   .kpi-divider {
     @apply h-px w-full bg-gradient-to-r from-transparent via-white/15 to-transparent;
+  }
+
+  .btn-primary {
+    @apply btn btn-primary;
+  }
+
+  .btn-ghost {
+    @apply btn btn-outline-light;
+  }
+
+  .btn-success {
+    @apply btn btn-success;
+  }
+
+  .btn-danger {
+    @apply btn btn-danger;
+  }
+
+  .form-control {
+    @apply form-control bg-slate-900 border-white/10 text-white;
+  }
+
+  .form-control::placeholder {
+    color: rgb(100 116 139 / 0.92);
+  }
+
+  .form-control:focus {
+    @apply border-cyan-300/50 ring-2 ring-cyan-300/20;
+  }
+
+  .card {
+    @apply rounded-3xl border-white/10 bg-slate-900/70 shadow-xl shadow-black/10;
+  }
+
+  .card-header {
+    @apply border-b border-white/10 bg-slate-900/50 px-4 py-3;
+  }
+
+  .card-body {
+    @apply p-4;
+  }
+
+  .badge {
+    @apply rounded-full px-3 py-1 text-xs font-medium;
+  }
+
+  .badge-healthy {
+    @apply bg-emerald-400/10 text-emerald-300;
+  }
+
+  .badge-warning {
+    @apply bg-amber-400/10 text-amber-300;
+  }
+
+  .badge-critical {
+    @apply bg-rose-400/10 text-rose-300;
+  }
+
+  .table {
+    @apply text-sm;
+  }
+
+  .table th {
+    @apply text-slate-500 uppercase tracking-wider;
+  }
+
+  .table td {
+    @apply align-middle;
+  }
+
+  .table tbody tr {
+    @apply transition hover:bg-white/[0.03];
   }
 }
 
