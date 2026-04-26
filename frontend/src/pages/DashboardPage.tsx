@@ -726,19 +726,19 @@ export default function DashboardPage() {
                 className="btn-primary"
                 onClick={() => Promise.all([fetchSites(), fetchStatsOverview(), fetchSourceData(), selectedSite ? fetchSiteHistory(selectedSite.id) : Promise.resolve()])}
               >
-                Làm mới control center
+                <span className="inline-flex items-center gap-1.5"><IconRefresh size={14} /> Làm mới</span>
               </button>
               <button
                 className="btn-ghost"
                 onClick={() => setShowAddForm((value) => !value)}
               >
-                {showAddForm ? 'Đóng form thêm site' : 'Thêm site mới'}
+                <span className="inline-flex items-center gap-1.5"><IconPlus size={14} /> {showAddForm ? 'Đóng form thêm site' : 'Thêm site mới'}</span>
               </button>
               <button
                 className="btn-success"
                 onClick={() => setShowSourceTools((value) => !value)}
               >
-                {showSourceTools ? 'Ẩn data sources' : 'Mở data sources'}
+                <span className="inline-flex items-center gap-1.5"><IconFilter size={14} /> {showSourceTools ? 'Ẩn data sources' : 'Mở data sources'}</span>
               </button>
             </div>
           </div>
@@ -1150,10 +1150,11 @@ export default function DashboardPage() {
         title="Bảng điều hành toàn mạng"
         description="Phiên bản gọn để nhìn toàn bộ site theo vùng, trạng thái và công suất hiện tại trên cùng một màn hình."
       >
+        <div className="mb-3"><span className="section-step">BOOTSTRAP-LIKE TABLE</span></div>
         <div className="table-shell overflow-x-auto">
           <table className="min-w-full divide-y divide-white/10 text-sm">
             <thead>
-              <tr className="text-left text-slate-500">
+              <tr className="table-head text-left">
                 <th className="px-3 py-3 font-medium">Site</th>
                 <th className="px-3 py-3 font-medium">Khu vực</th>
                 <th className="px-3 py-3 font-medium">Cụm</th>
@@ -1167,7 +1168,7 @@ export default function DashboardPage() {
               {filteredSiteRows.map((row) => {
                 const meta = statusMeta(row.health)
                 return (
-                  <tr key={row.site.id} className="transition hover:bg-cyan-400/[0.08]">
+                  <tr key={row.site.id} className="table-row-striped transition hover:bg-cyan-400/[0.08]">
                     <td className="px-3 py-4">
                       <button type="button" className="text-left" onClick={() => setSelectedSite(row.site)}>
                         <div className="font-medium text-white">{row.site.name}</div>
