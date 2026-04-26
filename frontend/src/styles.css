@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-family: Inter, 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -59,6 +59,26 @@ select {
 
   .force-modern .table-shell {
     @apply border-stone-200 bg-white;
+  }
+
+  .force-modern .table-head {
+    @apply bg-stone-50 text-stone-500;
+  }
+
+  .force-modern .table-row-striped:nth-child(even) {
+    background: rgba(245, 245, 244, 0.8);
+  }
+
+  .force-modern .section-step {
+    @apply border-stone-300 bg-stone-100 text-stone-600;
+  }
+
+  .force-modern .section-title-row {
+    @apply border-stone-200;
+  }
+
+  .force-modern .kpi-divider {
+    @apply bg-gradient-to-r from-transparent via-stone-200 to-transparent;
   }
 
   .glass-panel {
