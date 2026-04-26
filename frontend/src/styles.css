@@ -17,7 +17,7 @@ body {
   margin: 0;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  background: #f8fafc;
+  background: #020617;
 }
 
 * {
@@ -32,33 +32,33 @@ select {
 
 @layer components {
   .force-modern .section-shell {
-    @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+    @apply rounded-xl border border-slate-700/50 bg-slate-900/80 shadow-lg;
   }
 
   .force-modern .section-shell--ops,
   .force-modern .section-shell--alert,
   .force-modern .section-shell--data {
-    @apply border-slate-200 bg-white shadow-sm;
+    @apply border-slate-700/50 bg-slate-900/80 shadow-lg;
   }
 
   .force-modern .input-control {
-    @apply border-slate-300 bg-white text-slate-900;
+    @apply border-slate-600 bg-slate-800 text-white;
   }
 
   .force-modern .btn-primary {
-    @apply border border-slate-900 bg-slate-900 text-white hover:bg-slate-800;
+    @apply border border-cyan-400/50 bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30;
   }
 
   .force-modern .btn-ghost {
-    @apply border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+    @apply border border-slate-600 bg-slate-800 text-slate-300 hover:bg-slate-700;
   }
 
   .force-modern .btn-success {
-    @apply border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100;
+    @apply border border-emerald-400/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20;
   }
 
   .force-modern .table-shell {
-    @apply border-slate-200 bg-white;
+    @apply border-slate-700/50 bg-slate-900/80;
   }
 
   .glass-panel {

@@ -20,7 +20,7 @@ function MoonGlyph() {
 }
 
 export default function App() {
-  const [darkMode, setDarkMode] = useState<boolean>(false)
+  const [darkMode, setDarkMode] = useState<boolean>(true)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   useEffect(() => {
@@ -49,14 +49,14 @@ export default function App() {
   return (
     <div className={`force-modern flex min-h-screen ${darkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-30 flex flex-col border-r border-slate-200 bg-white transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-30 flex flex-col border-r border-slate-700 bg-slate-900 transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
         {/* Logo */}
-        <div className="flex h-16 items-center gap-3 border-b border-slate-200 px-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-sm text-white">☀️</div>
+        <div className="flex h-16 items-center gap-3 border-b border-slate-700 px-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400/30 to-violet-500/30 border border-cyan-300/30 text-sm text-cyan-300">☀️</div>
           {!sidebarCollapsed && (
             <div>
-              <div className="text-sm font-semibold text-slate-900">SolarVN</div>
-              <div className="text-[11px] text-slate-500">Operations Suite</div>
+              <div className="text-sm font-semibold text-white">SolarVN</div>
+              <div className="text-[11px] text-slate-400">Operations Suite</div>
             </div>
           )}
         </div>
@@ -69,7 +69,7 @@ export default function App() {
               <a
                 key={item.label}
                 href={item.href}
-                className={`mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${item.active ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
+                className={`mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${item.active ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/30' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
               >
                 <span className="text-base">{item.icon}</span>
                 {!sidebarCollapsed && <span>{item.label}</span>}
@@ -83,7 +83,7 @@ export default function App() {
               <a
                 key={item.label}
                 href={item.href}
-                className="mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                className="mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-400 transition hover:bg-slate-800 hover:text-white"
               >
                 <span className="text-base">{item.icon}</span>
                 {!sidebarCollapsed && <span>{item.label}</span>}
@@ -96,7 +96,7 @@ export default function App() {
         <div className="border-t border-white/10 p-3">
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-50 py-2 text-sm text-slate-600 transition hover:bg-slate-100"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-600 bg-slate-800 py-2 text-sm text-slate-300 transition hover:bg-slate-700"
           >
             <span>{sidebarCollapsed ? '→' : '←'}</span>
             {!sidebarCollapsed && <span>Collapse</span>}
@@ -107,17 +107,17 @@ export default function App() {
       {/* Main Content */}
       <main className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
         {/* Top Bar */}
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-5">
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-700 bg-slate-900 px-5">
           <div className="flex items-center gap-3">
-            <h1 className="text-base font-semibold tracking-tight text-slate-900">Usage & Analytics</h1>
-            <span className="rounded-md border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
+            <h1 className="text-base font-semibold tracking-tight text-white">Usage & Analytics</h1>
+            <span className="rounded-md border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
               Live
             </span>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="rounded-lg border border-slate-300 bg-white p-2 text-slate-700 transition hover:bg-slate-50"
+              className="rounded-lg border border-slate-600 bg-slate-800 p-2 text-slate-300 transition hover:bg-slate-700"
               aria-label="Toggle dark / light mode"
             >
               {darkMode ? '☀️' : '🌙'}
