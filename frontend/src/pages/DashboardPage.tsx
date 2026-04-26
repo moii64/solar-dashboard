@@ -125,17 +125,28 @@ function OverviewMetric({
   accent?: 'emerald' | 'cyan' | 'amber' | 'violet'
 }) {
   const accentClass = {
-    emerald: 'from-emerald-400/20 to-emerald-500/5 text-emerald-300',
-    cyan: 'from-cyan-400/20 to-cyan-500/5 text-cyan-300',
-    amber: 'from-amber-400/20 to-amber-500/5 text-amber-300',
-    violet: 'from-violet-400/20 to-violet-500/5 text-violet-300',
+    emerald: 'from-emerald-400/20 to-emerald-500/5 text-emerald-300 border-emerald-300/15',
+    cyan: 'from-cyan-400/20 to-cyan-500/5 text-cyan-300 border-cyan-300/15',
+    amber: 'from-amber-400/20 to-amber-500/5 text-amber-300 border-amber-300/15',
+    violet: 'from-violet-400/20 to-violet-500/5 text-violet-300 border-violet-300/15',
+  }[accent]
+
+  const icon = {
+    emerald: '⚡',
+    cyan: '🔋',
+    amber: '☀️',
+    violet: '🧭',
   }[accent]
 
   return (
-    <div className={`rounded-3xl border border-white/10 bg-gradient-to-br ${accentClass} p-5 shadow-lg shadow-black/10`}>
-      <div className="text-xs uppercase tracking-[0.18em] text-slate-400">{label}</div>
-      <div className="mt-3 text-3xl font-semibold tracking-tight text-white">{value}</div>
-      <div className="mt-2 text-sm text-slate-400">{hint}</div>
+    <div className={`group relative overflow-hidden rounded-3xl border bg-gradient-to-br ${accentClass} p-6 shadow-xl shadow-black/15 transition duration-300 hover:-translate-y-0.5 hover:shadow-cyan-500/10`}>
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-60" />
+      <div className="flex items-start justify-between gap-3">
+        <div className="text-xs uppercase tracking-[0.18em] text-slate-400">{label}</div>
+        <div className="rounded-2xl border border-white/10 bg-black/15 px-2 py-1 text-sm">{icon}</div>
+      </div>
+      <div className="mt-4 text-3xl font-semibold tracking-tight text-white md:text-[2rem]">{value}</div>
+      <div className="mt-2 text-sm text-slate-300">{hint}</div>
     </div>
   )
 }
@@ -675,11 +686,11 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900/70 p-6 shadow-2xl shadow-black/20 backdrop-blur-xl">
+      <section className="panel-scanline overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900/70 p-6 shadow-2xl shadow-black/20 backdrop-blur-xl">
         <div className="grid gap-6 lg:grid-cols-[1.35fr_0.85fr] lg:items-end">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-cyan-300">
-              <span className={`h-2 w-2 rounded-full ${realtimeState === 'live' ? 'bg-emerald-400' : realtimeState === 'connecting' ? 'bg-amber-400' : 'bg-rose-400'}`} />
+              <span className={`h-2 w-2 rounded-full ${realtimeState === 'live' ? 'bg-emerald-400 animate-pulse' : realtimeState === 'connecting' ? 'bg-amber-400 animate-pulse' : 'bg-rose-400'}`} />
               multi-site solar control center
             </div>
             <h2 className="mt-4 max-w-3xl text-3xl font-semibold tracking-tight text-white md:text-5xl">
@@ -718,7 +729,10 @@ export default function DashboardPage() {
             </div>
             <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
               <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Realtime fabric</div>
-              <div className="mt-3 text-xl font-semibold text-white">{realtimeState === 'live' ? 'LIVE' : realtimeState === 'connecting' ? 'Đang nối' : 'Mất kết nối'}</div>
+              <div className="mt-3 flex items-center gap-2 text-xl font-semibold text-white">
+                <span className={`inline-flex h-2.5 w-2.5 rounded-full ${realtimeState === 'live' ? 'bg-emerald-400 animate-pulse' : realtimeState === 'connecting' ? 'bg-amber-400 animate-pulse' : 'bg-rose-400'}`} />
+                {realtimeState === 'live' ? 'LIVE' : realtimeState === 'connecting' ? 'Đang nối' : 'Mất kết nối'}
+              </div>
               <div className="mt-2 text-sm text-slate-400">Cập nhật gần nhất {formatSyncTime(lastUpdated)}</div>
             </div>
             <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
@@ -752,7 +766,7 @@ export default function DashboardPage() {
         </form>
       )}
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="scada-grid md:grid-cols-2 xl:grid-cols-4">
         <OverviewMetric label="Tổng site" value={String(overview.totalSites)} hint={`${overview.healthySites} site vận hành tốt`} accent="emerald" />
         <OverviewMetric label="Công suất toàn danh mục" value={`${formatMetric(overview.totalPower)} W`} hint="Tổng công suất tức thời toàn mạng" accent="cyan" />
         <OverviewMetric label="Sản lượng hôm nay" value={`${formatMetric(overview.totalEnergy, 2)} kWh`} hint="Tổng sản lượng theo dữ liệu live mới nhất" accent="amber" />
@@ -807,7 +821,7 @@ export default function DashboardPage() {
                   key={row.site.id}
                   type="button"
                   onClick={() => setSelectedSite(row.site)}
-                  className={`w-full rounded-3xl border p-4 text-left transition ${active ? 'border-cyan-400/40 bg-cyan-400/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
+                  className={`w-full rounded-3xl border p-4 text-left transition duration-200 ${active ? 'border-cyan-400/40 bg-cyan-400/10 shadow-lg shadow-cyan-400/10' : 'border-white/10 bg-white/5 hover:border-cyan-300/30 hover:bg-white/10'}`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -819,17 +833,17 @@ export default function DashboardPage() {
                     </div>
                     <div className={`rounded-full px-3 py-1 text-xs ${meta.pill}`}>{meta.label}</div>
                   </div>
-                  <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
+                  <div className="mt-4 grid grid-cols-3 gap-2 text-sm md:gap-3">
                     <div className="rounded-2xl bg-slate-950/70 p-3">
-                      <div className="text-slate-500">Power</div>
+                      <div className="text-slate-500">⚡ Power</div>
                       <div className="mt-1 font-semibold text-white">{formatMetric(row.currentPower)} W</div>
                     </div>
                     <div className="rounded-2xl bg-slate-950/70 p-3">
-                      <div className="text-slate-500">Energy</div>
+                      <div className="text-slate-500">🔋 Energy</div>
                       <div className="mt-1 font-semibold text-white">{formatMetric(row.energyToday, 2)} kWh</div>
                     </div>
                     <div className="rounded-2xl bg-slate-950/70 p-3">
-                      <div className="text-slate-500">Temp</div>
+                      <div className="text-slate-500">🌡️ Temp</div>
                       <div className="mt-1 font-semibold text-white">{row.temperature !== null ? `${formatMetric(row.temperature, 1)} °C` : '--'}</div>
                     </div>
                   </div>
@@ -1137,8 +1151,8 @@ export default function DashboardPage() {
                     <td className="px-3 py-4">
                       <span className={`inline-flex rounded-full px-3 py-1 text-xs ${meta.pill}`}>{meta.label}</span>
                     </td>
-                    <td className="px-3 py-4 text-white">{formatMetric(row.currentPower)} W</td>
-                    <td className="px-3 py-4 text-white">{formatMetric(row.energyToday, 2)} kWh</td>
+                    <td className="px-3 py-4 text-white">⚡ {formatMetric(row.currentPower)} W</td>
+                    <td className="px-3 py-4 text-white">🔋 {formatMetric(row.energyToday, 2)} kWh</td>
                     <td className="px-3 py-4">
                       <button type="button" onClick={() => handleDeleteSite(row.site.id)} className="rounded-full border border-rose-400/25 bg-rose-400/10 px-3 py-1 text-xs font-medium text-rose-200 transition hover:bg-rose-400/20">
                         Xoá
