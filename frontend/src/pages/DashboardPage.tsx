@@ -126,10 +126,10 @@ function OverviewMetric({
   accent?: 'emerald' | 'cyan' | 'amber' | 'violet'
 }) {
   const accentClass = {
-    emerald: 'from-emerald-400/20 to-emerald-500/5 text-emerald-300 border-emerald-300/15',
-    cyan: 'from-cyan-400/20 to-cyan-500/5 text-cyan-300 border-cyan-300/15',
-    amber: 'from-amber-400/20 to-amber-500/5 text-amber-300 border-amber-300/15',
-    violet: 'from-violet-400/20 to-violet-500/5 text-violet-300 border-violet-300/15',
+    emerald: 'border-emerald-200 bg-emerald-50/60 text-emerald-700',
+    cyan: 'border-cyan-200 bg-cyan-50/60 text-cyan-700',
+    amber: 'border-amber-200 bg-amber-50/70 text-amber-700',
+    violet: 'border-violet-200 bg-violet-50/70 text-violet-700',
   }[accent]
 
   const IconComponent = {
@@ -140,16 +140,16 @@ function OverviewMetric({
   }[accent]
 
   return (
-    <div className={`group relative overflow-hidden rounded-3xl border bg-gradient-to-br ${accentClass} p-5 md:p-6 shadow-xl shadow-black/15 transition duration-300 hover:-translate-y-0.5 hover:shadow-cyan-500/10`}>
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-60" />
+    <div className={`group relative overflow-hidden rounded-2xl border ${accentClass} p-5 md:p-6 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md`}>
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-white to-transparent opacity-70" />
       <div className="flex items-start justify-between gap-3">
-        <div className="text-xs uppercase tracking-[0.18em] text-slate-400">{label}</div>
-        <div className="flex h-8 w-8 items-center justify-center rounded-2xl border border-white/10 bg-black/20">
-          <IconComponent size={16} className="text-slate-300" />
+        <div className="text-xs uppercase tracking-[0.16em] text-stone-500">{label}</div>
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-white bg-white/90 shadow-sm">
+          <IconComponent size={16} className="text-stone-700" />
         </div>
       </div>
-      <div className="mt-4 text-2xl font-semibold tracking-tight text-white md:text-[2rem]">{value}</div>
-      <div className="mt-2 text-sm text-slate-300">{hint}</div>
+      <div className="mt-4 text-2xl font-semibold tracking-tight text-stone-900 md:text-[2rem]">{value}</div>
+      <div className="mt-2 text-sm text-stone-600">{hint}</div>
     </div>
   )
 }
@@ -178,9 +178,9 @@ function SectionCard({
     <section className={`section-shell ${toneClass}`}>
       <div className="section-title-row">
         <div>
-          <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{eyebrow}</div>
-          <h3 className="mt-1 text-xl font-semibold text-white">{title}</h3>
-          {description ? <p className="mt-1 text-sm text-slate-400">{description}</p> : null}
+          <div className="text-xs uppercase tracking-[0.18em] text-stone-500">{eyebrow}</div>
+          <h3 className="mt-1 text-xl font-semibold text-stone-900">{title}</h3>
+          {description ? <p className="mt-1 text-sm text-stone-600">{description}</p> : null}
         </div>
       </div>
       {children}
@@ -242,19 +242,19 @@ function statusMeta(health: SiteHealth) {
   return {
     healthy: {
       dot: 'bg-emerald-400',
-      pill: 'bg-emerald-400/10 text-emerald-300',
+      pill: 'bg-emerald-100 text-emerald-700',
       border: 'border-emerald-400/30',
       label: 'Vận hành tốt',
     },
     warning: {
       dot: 'bg-amber-400',
-      pill: 'bg-amber-400/10 text-amber-300',
+      pill: 'bg-amber-100 text-amber-700',
       border: 'border-amber-400/30',
       label: 'Cần theo dõi',
     },
     critical: {
       dot: 'bg-rose-400',
-      pill: 'bg-rose-400/10 text-rose-300',
+      pill: 'bg-rose-100 text-rose-700',
       border: 'border-rose-400/30',
       label: 'Cần xử lý',
     },
