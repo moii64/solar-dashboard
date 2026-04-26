@@ -20,7 +20,7 @@ function MoonGlyph() {
 }
 
 export default function App() {
-  const [darkMode, setDarkMode] = useState<boolean>(true)
+  const [darkMode, setDarkMode] = useState<boolean>(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   useEffect(() => {
@@ -47,16 +47,16 @@ export default function App() {
   ]
 
   return (
-    <div className={`flex min-h-screen ${darkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
+    <div className={`force-modern flex min-h-screen ${darkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-30 flex flex-col border-r border-white/10 bg-slate-900/95 backdrop-blur transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-56'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-30 flex flex-col border-r border-slate-200 bg-white transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
         {/* Logo */}
-        <div className="flex h-14 items-center gap-2 border-b border-white/10 px-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-300/30 bg-cyan-400/10 text-sm">☀️</div>
+        <div className="flex h-16 items-center gap-3 border-b border-slate-200 px-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-sm text-white">☀️</div>
           {!sidebarCollapsed && (
             <div>
-              <div className="text-sm font-semibold text-white">SolarVN</div>
-              <div className="text-[10px] text-slate-400">Control Center</div>
+              <div className="text-sm font-semibold text-slate-900">SolarVN</div>
+              <div className="text-[11px] text-slate-500">Operations Suite</div>
             </div>
           )}
         </div>
@@ -64,12 +64,12 @@ export default function App() {
         {/* Nav Items */}
         <nav className="flex-1 overflow-y-auto py-3">
           <div className="px-3 pb-2">
-            {!sidebarCollapsed && <div className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">Menu</div>}
+            {!sidebarCollapsed && <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Menu</div>}
             {navItems.map((item) => (
               <a
                 key={item.label}
                 href={item.href}
-                className={`mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${item.active ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-300/20' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
+                className={`mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${item.active ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
               >
                 <span className="text-base">{item.icon}</span>
                 {!sidebarCollapsed && <span>{item.label}</span>}
@@ -78,12 +78,12 @@ export default function App() {
           </div>
 
           <div className="border-t border-white/5 px-3 pt-3 mt-2">
-            {!sidebarCollapsed && <div className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-500">System</div>}
+            {!sidebarCollapsed && <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">System</div>}
             {systemItems.map((item) => (
               <a
                 key={item.label}
                 href={item.href}
-                className="mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition hover:bg-white/5 hover:text-white"
+                className="mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
               >
                 <span className="text-base">{item.icon}</span>
                 {!sidebarCollapsed && <span>{item.label}</span>}
@@ -96,7 +96,7 @@ export default function App() {
         <div className="border-t border-white/10 p-3">
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 py-2 text-sm text-slate-300 transition hover:bg-white/10"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-50 py-2 text-sm text-slate-600 transition hover:bg-slate-100"
           >
             <span>{sidebarCollapsed ? '→' : '←'}</span>
             {!sidebarCollapsed && <span>Collapse</span>}
@@ -105,19 +105,19 @@ export default function App() {
       </aside>
 
       {/* Main Content */}
-      <main className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-56'}`}>
+      <main className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
         {/* Top Bar */}
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-white/10 bg-slate-900/80 px-5 backdrop-blur">
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-5">
           <div className="flex items-center gap-3">
-            <h1 className="text-base font-semibold tracking-tight">Usage & Analytics</h1>
-            <span className="rounded-md border border-emerald-300/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+            <h1 className="text-base font-semibold tracking-tight text-slate-900">Usage & Analytics</h1>
+            <span className="rounded-md border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
               Live
             </span>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="rounded-lg border border-white/15 bg-white/5 p-2 transition hover:bg-white/10"
+              className="rounded-lg border border-slate-300 bg-white p-2 text-slate-700 transition hover:bg-slate-50"
               aria-label="Toggle dark / light mode"
             >
               {darkMode ? '☀️' : '🌙'}

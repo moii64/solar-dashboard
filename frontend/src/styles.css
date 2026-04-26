@@ -17,11 +17,7 @@ body {
   margin: 0;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  background:
-    radial-gradient(circle at 15% 8%, rgba(217, 70, 239, 0.16), transparent 24%),
-    radial-gradient(circle at 85% 10%, rgba(34, 211, 238, 0.14), transparent 26%),
-    radial-gradient(circle at 50% 100%, rgba(16, 185, 129, 0.12), transparent 34%),
-    linear-gradient(180deg, #020617 0%, #030712 100%);
+  background: #f8fafc;
 }
 
 * {
@@ -35,6 +31,36 @@ select {
 }
 
 @layer components {
+  .force-modern .section-shell {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  .force-modern .section-shell--ops,
+  .force-modern .section-shell--alert,
+  .force-modern .section-shell--data {
+    @apply border-slate-200 bg-white shadow-sm;
+  }
+
+  .force-modern .input-control {
+    @apply border-slate-300 bg-white text-slate-900;
+  }
+
+  .force-modern .btn-primary {
+    @apply border border-slate-900 bg-slate-900 text-white hover:bg-slate-800;
+  }
+
+  .force-modern .btn-ghost {
+    @apply border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+  }
+
+  .force-modern .btn-success {
+    @apply border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100;
+  }
+
+  .force-modern .table-shell {
+    @apply border-slate-200 bg-white;
+  }
+
   .glass-panel {
     @apply rounded-2xl border border-white/10 bg-slate-900/80 shadow-lg shadow-black/20 backdrop-blur;
   }
