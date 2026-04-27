@@ -1,6 +1,6 @@
 # Solar Dashboard - Progress Log
 
-Cập nhật gần nhất: 2026-04-26 15:46 (GMT+7)
+Cập nhật gần nhất: 2026-04-26 18:05 (GMT+7)
 
 ## ✅ Đã thực hiện
 - Kiểm tra lại project thực tế ở root:
@@ -16,18 +16,17 @@ Cập nhật gần nhất: 2026-04-26 15:46 (GMT+7)
   - `docker-compose.yml`, `.env.example`
   - `tests/test_api.py`
 - Đã chốt trạng thái hiện tại:
-  - **Backend:** FastAPI + SQLAlchemy, có CRUD cơ bản cho inverter, seed demo data khi startup, endpoint latest/data/delete, WebSocket mock realtime.
+  - **Backend:** FastAPI + SQLAlchemy, có CRUD cơ bản cho inverter, seed demo data khi startup, WebSocket broadcast dữ liệu realtime.
   - **Simulator:** có Modbus TCP simulator ở cổng `5020`.
   - **Frontend:** UI khá đẹp, dark mode, dashboard overview, list/select/add/delete inverter, polling dữ liệu mỗi 15s, chart công suất bằng Recharts.
   - **Docker/Infra:** có `redis`, `postgres`, `backend`, `frontend` trong `docker-compose.yml`.
 - Đã verify nhanh:
   - `frontend`: `npm run build` ✅ thành công
-  - `backend tests`: `pytest tests -q` ✅ 5 tests pass
+  - `backend tests`: `python -m pytest tests -q` ✅ 15 tests pass
 - Đã hoàn thiện backend block tiếp theo:
   - thêm `PUT /inverters/{id}` để cập nhật thông tin inverter
   - thêm `GET /stats/overview` cho dashboard summary
   - thêm `GET /stats/history` hỗ trợ chart fleet / single inverter
-- Đã mở rộng test API cho các endpoint mới và cập nhật lại file tiến độ
 - Đã nối frontend sang stats API mới:
   - card overview lấy dữ liệu từ `GET /stats/overview`
   - biểu đồ công suất dùng `GET /stats/history?inverter_id=...`
@@ -71,7 +70,7 @@ Cập nhật gần nhất: 2026-04-26 15:46 (GMT+7)
   - verify lại backend test: `11` tests pass
 - Đã dọn block tech debt/deprecation ở backend:
   - đổi `from sqlalchemy.ext.declarative import declarative_base` -> `from sqlalchemy.orm import declarative_base`
-  - đổi `@app.on_event("startup"/"shutdown")` sang `lifespan` (`@asynccontextmanager` + `FastAPI(..., lifespan=lifespan)`)
+  - đổi `@app.on_event("startup"/"shutdown")` sang `lifespan` (`@asynccontextmanager` + `FastAPI(..., lifespam=lifespan)`)
   - đổi model response từ Pydantic `class Config` sang `model_config`
   - đổi các chỗ `datetime.utcnow()` sang timezone-aware (`datetime.now(timezone.utc)`)
 - Đã cài `psycopg[binary]` trong `backend_venv` để gỡ lỗi thiếu driver PostgreSQL khi verify import.
@@ -84,56 +83,7 @@ Cập nhật gần nhất: 2026-04-26 15:46 (GMT+7)
   - Thêm debug logs (print statements) để trace callback execution
   - Smoke test PASS: publish payload từ backend → broker → consumer → DB persist thành công (reading_id=847)
 
-## ⏳ Đang làm
-- Realtime nền hiện đã có 3 đường: backend mock loop, simulator Modbus → telemetry ingest, và MQTT consumer → telemetry ingest.
-- Luồng simulator → backend đã được verify chạy thật trong Docker network nội bộ.
-- MQTT consumer đã xong bản nền ở backend; bước sau là có thể gắn broker/gateway thật để smoke test ngoài đời.
-- Host ports `8000/5432/6379` hiện đang bị project khác chiếm, nên nếu muốn chạy full compose nguyên bản cần đổi port hoặc tắt stack kia.
-- UI hiện tại đã chuyển sang góc nhìn multi-site control center.
-- Bước kế tiếp là làm dữ liệu và trải nghiệm map thật hơn để xứng với định vị mới.
-
-## ✅ Đã xong (block này)
-- **Tối ưu frontend bundle:**
-  - Vite config: thêm `manualChunks` chia vendor thành 8 chunk riêng (react, router, query, charts, map, utils)
-  - Main bundle giảm: 656KB → 42KB (gzip ~11KB)
-  - Recharts tách thành `ChartComponent` lazy-loaded (`React.lazy` + `Suspense`)
-  - vendor-charts (Recharts): 378KB (gzip ~104KB) - load khi cần
-  - vendor-router (155KB), vendor-query (36KB), vendor-utils (39KB)
-  - vendor-map: 1KB (maplibre/deck.gl chưa dùng)
-  - Build pass, no chunk size warnings
-
-## ✅ Cập nhật mới (14:25)
-- Đã nâng cấp MapComponent lên bản "thật" hơn:
-  - Heat layer: density visualization theo health weight ở zoom thấp (4-9)
-  - Cluster layer: nhóm markers có count badge, click để expand, ở zoom trung (9-10)
-  - Point layer: circles size theo công suất (interpolated), color theo health, highlight khi selected
-  - Popup on click/hover hiện thông tin site
-  - Smooth transitions và fit bounds khi data thay đổi
-- Build verify thành công: `npm run build` ✅ (8.16s)
-
-## ✅ Cập nhật mới (14:30)
-- Đã hoàn thiện UI detail panel cho site được select:
-  - Tách component `SiteDetailPanel` riêng, hiển thị thông tin chi tiết site ở panel bên phải
-  - Hiển thị trạng thái sức khỏe, metadata vị trí/thiết bị, KPI nhanh (power/energy/temp/last update)
-  - Nhúng biểu đồ lịch sử 24h bằng `ChartComponent` trong panel
-  - Đóng/mở panel theo site được chọn từ map hoặc bảng
-- Đã sửa wiring giữa `MapComponent` và `DashboardPage`:
-  - Đồng bộ `onSiteClick(siteId)` -> map sang `selectedSite`
-  - Sửa import path và lỗi type để build sạch
-- Build verify thành công: `npm run build` ✅ (8.53s)
-
-## ✅ Cập nhật mới (15:00)
-- Đã thêm weather overlay tile layer cho `MapComponent`:
-  - Hỗ trợ source/layer raster thời tiết với env `VITE_WEATHER_TILE_URL`
-  - Có toggle `Weather` trong panel layer controls để bật/tắt lớp thời tiết
-  - Overlay dùng `raster-opacity` để chồng nhẹ lên base map
-  - Khi chưa cấu hình URL, UI hiển thị cảnh báo nhỏ để biết overlay đang tắt
-- Đã mở rộng cấu hình môi trường:
-  - thêm `VITE_WEATHER_TILE_URL` vào `solar-dashboard/.env.example`
-  - kèm ví dụ OpenWeather tile template `{z}/{x}/{y}`
-- Build verify thành công: `npm run build` ✅ (11.44s)
-
-## ✅ Cập nhật mới (15:46)
+## ✅ Cập nhật mới (2026-04-26 15:46)
 - Đã hoàn thiện weather overlay với legend + opacity control:
   - Thêm `VITE_WEATHER_LAYER_KIND` env để chọn loại overlay: `precipitation` | `clouds` | `temp`
   - Mỗi loại có metadata riêng: title, unit, gradient màu, marks (min/mid/max)
@@ -145,10 +95,45 @@ Cập nhật gần nhất: 2026-04-26 15:46 (GMT+7)
   - Thêm `VITE_WEATHER_LAYER_KIND=precipitation` với comment hướng dẫn 3 loại
 - Build verify thành công: `npm run build` ✅ (7.27s)
 
-## 📌 Việc tiếp theo
-1. (Optional) Thêm time slider cho weather animation nếu có tile hỗ trợ timestamp
-2. (Optional) Tích hợp weather forecast API để hiển thị dự báo 3-7 ngày
-3. Tiếp tục làm data pipeline thật (nối gateway/MQTT broker production)
+## ✅ Cập nhật mới (2026-04-26 17:50)
+- Đã deploy thành công frontend lên Vercel:
+  - URL: https://frontend-fawn-ten-90.vercel.app (alias: https://solarvn-app.vercel.app)
+  - Branding changed to "SolarVN Control Center"
+- Đã deploy backend lên Render.com:
+  - URL: https://solar-dashboard-dzxk.onrender.com
+  - Health check: https://solar-dashboard-dzxk.onrender.com/healthz OK
+- Đã cấu hình frontend gọi backend production:
+  - `VITE_API_BASE=https://solar-dashboard-dzxk.onrender.com`
+  - `VITE_WS_URL=wss://solar-dashboard-dzxk.onrender.com/ws/inverters`
+- Đã push repository lên GitHub:
+  - Repo: https://github.com/moii64/solar-dashboard
+  - Commit baseline: `a2bd7cd`
+- Đã chuẩn bị bộ production kit:
+  - `docker-compose.prod.yml` (Postgres, Redis, MQTT, Backend)
+  - `backend/.env.production.example`
+  - `mosquitto.prod.conf`
+  - `setup-prod.sh`, `setup-prod.ps1`
+  - `PRODUCTION_GUIDE.md`
+  - `render.yaml`
+  - `backend/Dockerfile` (Render-ready)
+- Đã thêm **Inverter Model Form** vào Dashboard:
+  - Nhập mã model (SG50CX, SG110CX, GW50KN-MT, SUN2000-50KTL, SE33.3K)
+  - Tự điền thông số P02.01~P02.05
+  - Button Copy checklist cấu hình biến tần
+
+## ✅ Việc tiếp theo
+1. Tiếp tục nâng cấp UI:
+   - Thêm micro-animations & transitions tinh tế
+   - Tối ưu typography & spacing
+   - Nâng cấp data visualization (Recharts, Map)
+2. Backend production thực thụ:
+   - Deploy lên VPS/Render/Fly.io với MQTT 24/7
+   - Cấu hình SSL + reverse proxy
+   - Map domain `solarvn.com`, `app.solarvn.com`, `api.solarvn.com`
+3. Tích hợp dữ liệu thật:
+   - Kết nối MQTT broker/gateway thực tế
+   - Import historical data từ weather stations
+   - Dự báo sản lượng (ML/yield prediction)
 
 ## 🧭 Cách dùng file này
 - Mỗi lần tiếp tục, chỉ cần quét `solar-dashboard/PROGRESS.md` trước.
