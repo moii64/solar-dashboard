@@ -119,11 +119,15 @@ function OverviewMetric({
   value,
   hint,
   accent = 'emerald',
+  onClick,
+  active = false,
 }: {
   label: string
   value: string
   hint: string
   accent?: 'emerald' | 'cyan' | 'amber' | 'violet'
+  onClick?: () => void
+  active?: boolean
 }) {
   const accentClass = {
     emerald: 'border-emerald-200 bg-emerald-50/60 text-emerald-700',
@@ -140,7 +144,11 @@ function OverviewMetric({
   }[accent]
 
   return (
-    <div className={`group relative overflow-hidden rounded-2xl border ${accentClass} p-5 md:p-6 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group relative w-full overflow-hidden rounded-2xl border ${accentClass} p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${onClick ? 'cursor-pointer' : 'cursor-default'} ${active ? 'ring-2 ring-cyan-300/40' : ''}`}
+    >
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-white to-transparent opacity-70" />
       <div className="flex items-start justify-between gap-3">
         <div className="text-xs uppercase tracking-[0.16em] text-stone-500">{label}</div>
@@ -150,7 +158,7 @@ function OverviewMetric({
       </div>
       <div className="mt-4 text-2xl font-semibold tracking-tight text-stone-900 md:text-[2rem]">{value}</div>
       <div className="mt-2 text-sm text-stone-600">{hint}</div>
-    </div>
+    </button>
   )
 }
 
@@ -283,6 +291,7 @@ export default function DashboardPage() {
   const [healthFilter, setHealthFilter] = useState<'all' | SiteHealth>('all')
   const [activeTab, setActiveTab] = useState<'overview' | 'details'>('overview')
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | '60d'>('7d')
+  const [autoRefresh, setAutoRefresh] = useState(false)
   const [formData, setFormData] = useState<FormData>({
     name: '',
     location: '',
@@ -435,11 +444,26 @@ export default function DashboardPage() {
     refreshSelected()
 
     const intervalId = window.setInterval(() => {
-      refreshSelected()
+      void refreshSelected()
     }, 60000)
 
     return () => window.clearInterval(intervalId)
   }, [selectedSite])
+
+  useEffect(() => {
+    if (!autoRefresh) return
+
+    const intervalId = window.setInterval(() => {
+      void Promise.all([
+        fetchSites(),
+        fetchStatsOverview(),
+        fetchSourceData(),
+        selectedSiteIdRef.current ? fetchSiteHistory(selectedSiteIdRef.current) : Promise.resolve(),
+      ])
+    }, 15000)
+
+    return () => window.clearInterval(intervalId)
+  }, [autoRefresh])
 
   useEffect(() => {
     let closedByApp = false
@@ -754,6 +778,12 @@ export default function DashboardPage() {
               >
                 <span className="inline-flex items-center gap-1.5"><IconFilter size={14} /> {showSourceTools ? 'Ẩn data sources' : 'Mở data sources'}</span>
               </button>
+              <button
+                className="btn-ghost"
+                onClick={() => setAutoRefresh((value) => !value)}
+              >
+                <span className="inline-flex items-center gap-1.5"><IconActivity size={14} /> Auto refresh {autoRefresh ? 'ON' : 'OFF'}</span>
+              </button>
             </div>
           </div>
 
@@ -821,10 +851,38 @@ export default function DashboardPage() {
           <section className="space-y-4">
             <div className="kpi-divider" />
             <div className="scada-grid md:grid-cols-2 xl:grid-cols-4">
-              <OverviewMetric label="Total Requests" value={formatMetric(overview.totalSites)} hint={`${overview.healthySites} active nodes`} accent="emerald" />
-              <OverviewMetric label="Input Power" value={`${formatMetric(overview.totalPower)} W`} hint="Current total portfolio power" accent="cyan" />
-              <OverviewMetric label="Output Energy" value={`${formatMetric(overview.totalEnergy, 2)} kWh`} hint="Energy today across all sites" accent="amber" />
-              <OverviewMetric label="Est. Health" value={`${overview.healthScore}%`} hint="Estimated portfolio reliability" accent="violet" />
+              <OverviewMetric
+                label="Total Requests"
+                value={formatMetric(overview.totalSites)}
+                hint={`${overview.healthySites} active nodes`}
+                accent="emerald"
+                onClick={() => setHealthFilter('all')}
+                active={healthFilter === 'all'}
+              />
+              <OverviewMetric
+                label="Input Power"
+                value={`${formatMetric(overview.totalPower)} W`}
+                hint="Current total portfolio power"
+                accent="cyan"
+                onClick={() => setHealthFilter('healthy')}
+                active={healthFilter === 'healthy'}
+              />
+              <OverviewMetric
+                label="Output Energy"
+                value={`${formatMetric(overview.totalEnergy, 2)} kWh`}
+                hint="Energy today across all sites"
+                accent="amber"
+                onClick={() => setHealthFilter('warning')}
+                active={healthFilter === 'warning'}
+              />
+              <OverviewMetric
+                label="Est. Health"
+                value={`${overview.healthScore}%`}
+                hint="Estimated portfolio reliability"
+                accent="violet"
+                onClick={() => setHealthFilter('critical')}
+                active={healthFilter === 'critical'}
+              />
             </div>
           </section>
 
@@ -869,10 +927,38 @@ export default function DashboardPage() {
           <section className="space-y-4">
             <div className="kpi-divider" />
             <div className="scada-grid md:grid-cols-2 xl:grid-cols-4">
-              <OverviewMetric label="Tổng site" value={String(overview.totalSites)} hint={`${overview.healthySites} site vận hành tốt`} accent="emerald" />
-              <OverviewMetric label="Công suất toàn danh mục" value={`${formatMetric(overview.totalPower)} W`} hint="Tổng công suất tức thời toàn mạng" accent="cyan" />
-              <OverviewMetric label="Sản lượng hôm nay" value={`${formatMetric(overview.totalEnergy, 2)} kWh`} hint="Tổng sản lượng theo dữ liệu live mới nhất" accent="amber" />
-              <OverviewMetric label="Site cần chú ý" value={String(overview.watchSites + overview.criticalSites)} hint={`${overview.criticalSites} site mức ưu tiên cao`} accent="violet" />
+              <OverviewMetric
+                label="Tổng site"
+                value={String(overview.totalSites)}
+                hint={`${overview.healthySites} site vận hành tốt`}
+                accent="emerald"
+                onClick={() => setHealthFilter('all')}
+                active={healthFilter === 'all'}
+              />
+              <OverviewMetric
+                label="Công suất toàn danh mục"
+                value={`${formatMetric(overview.totalPower)} W`}
+                hint="Tổng công suất tức thời toàn mạng"
+                accent="cyan"
+                onClick={() => setHealthFilter('healthy')}
+                active={healthFilter === 'healthy'}
+              />
+              <OverviewMetric
+                label="Sản lượng hôm nay"
+                value={`${formatMetric(overview.totalEnergy, 2)} kWh`}
+                hint="Tổng sản lượng theo dữ liệu live mới nhất"
+                accent="amber"
+                onClick={() => setHealthFilter('warning')}
+                active={healthFilter === 'warning'}
+              />
+              <OverviewMetric
+                label="Site cần chú ý"
+                value={String(overview.watchSites + overview.criticalSites)}
+                hint={`${overview.criticalSites} site mức ưu tiên cao`}
+                accent="violet"
+                onClick={() => setHealthFilter('critical')}
+                active={healthFilter === 'critical'}
+              />
             </div>
           </section>
 
