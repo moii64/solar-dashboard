@@ -1,6 +1,6 @@
 # Solar Dashboard - Progress Log
 
-Cập nhật gần nhất: 2026-04-26 18:05 (GMT+7)
+Cập nhật gần nhất: 2026-04-28 06:57 (GMT+7)
 
 ## ✅ Đã thực hiện
 - Kiểm tra lại project thực tế ở root:
@@ -121,16 +121,29 @@ Cập nhật gần nhất: 2026-04-26 18:05 (GMT+7)
   - Tự điền thông số P02.01~P02.05
   - Button Copy checklist cấu hình biến tần
 
+## ✅ Cập nhật mới (2026-04-28 06:57)
+- Đã commit và push code lên GitHub (commit `94bc6ef`):
+  - Cập nhật branding từ "Solar Việt Nam Dashboard" → "SolarVN Dashboard"
+  - Rút gọn PROGRESS.md
+- Đã deploy lại frontend lên Vercel:
+  - Production URL: https://solar-dashboard-rouge.vercel.app
+  - Preview URL: https://solar-dashboard-h73v4vc18-mmax64s-projects.vercel.app
+  - Build thành công trong 59s (Vite + TypeScript)
+  - Vercel tự động tạo Python venv cho backend service
+
 ## ✅ Việc tiếp theo
-1. Tiếp tục nâng cấp UI:
+1. Kiểm tra frontend production hoạt động:
+   - Verify API connection với backend Render
+   - Test WebSocket realtime updates
+   - Kiểm tra responsive trên mobile
+2. Tiếp tục nâng cấp UI:
    - Thêm micro-animations & transitions tinh tế
    - Tối ưu typography & spacing
    - Nâng cấp data visualization (Recharts, Map)
-2. Backend production thực thụ:
-   - Deploy lên VPS/Render/Fly.io với MQTT 24/7
+3. Backend production thực thụ:
    - Cấu hình SSL + reverse proxy
    - Map domain `solarvn.com`, `app.solarvn.com`, `api.solarvn.com`
-3. Tích hợp dữ liệu thật:
+4. Tích hợp dữ liệu thật:
    - Kết nối MQTT broker/gateway thực tế
    - Import historical data từ weather stations
    - Dự báo sản lượng (ML/yield prediction)
