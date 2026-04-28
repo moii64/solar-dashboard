@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'rea
 import axios from 'axios'
 import SiteDetailPanel from '../components/SiteDetailPanel'
 import InverterModelForm from '../components/InverterModelForm'
-import { IconBolt, IconBattery, IconSun, IconThermometer, IconActivity, IconFilter, IconTrash, IconRefresh, IconPlus, IconArrowRight, IconCheckCircle, IconAlertTriangle, IconXCircle } from '../components/Icons'
+import { IconBolt, IconBattery, IconSun, IconThermometer, IconActivity, IconFilter, IconTrash, IconRefresh, IconPlus, IconArrowRight, IconCheckCircle, IconAlertTriangle, IconXCircle, IconChart, IconMap } from '../components/Icons'
 
 const Chart = lazy(() => import('./ChartComponent'))
 const MapComponent = lazy(() => import('./MapComponent'))
@@ -49,44 +49,6 @@ type StatsHistoryPoint = {
   is_online?: boolean | null
 }
 
-type WeatherObservation = {
-  id: number
-  source_name: string
-  station_id?: string | null
-  station_name?: string | null
-  observed_at: string
-  latitude?: number | null
-  longitude?: number | null
-  solar_radiation?: number | null
-  temperature?: number | null
-  wind_speed?: number | null
-  pressure?: number | null
-  raw_payload?: string | null
-}
-
-type SourceSyncLog = {
-  id: number
-  source_name: string
-  sync_type: string
-  status: string
-  started_at: string
-  finished_at?: string | null
-  records_processed: number
-  message?: string | null
-}
-
-type SourceConnector = {
-  source_name: string
-  auth_requirements: Record<string, string>
-  implementation_status: string
-}
-
-type TelemetryMessage = {
-  type: 'telemetry'
-  reading: SiteTelemetry
-  stats_overview?: StatsOverview
-}
-
 type FormData = {
   name: string
   location: string
@@ -108,7 +70,8 @@ function StatCard({
   value, 
   subtitle, 
   change, 
-  changeType = 'up' 
+  changeType = 'up',
+  delay = 0
 }: { 
   icon: React.ReactNode
   title: string
@@ -116,13 +79,17 @@ function StatCard({
   subtitle: string
   change?: string
   changeType?: 'up' | 'down'
+  delay?: number
 }) {
   return (
-    <div className="dc-stat-card">
+    <div 
+      className="dc-stat-card group animate-slide-up"
+      style={{ animationDelay: `${delay}ms` }}
+    >
       <div className="flex items-start justify-between mb-4">
-        <div className="dc-stat-icon">{icon}</div>
+        <div className="dc-stat-icon group-hover:scale-110 transition-transform duration-300">{icon}</div>
         {change && (
-          <span className={`text-xs font-medium px-2 py-1 rounded ${changeType === 'up' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'}`}>
+          <span className={`text-xs font-medium px-2 py-1 rounded transition-all duration-300 ${changeType === 'up' ? 'bg-emerald-500/15 text-emerald-400 group-hover:bg-emerald-500/25' : 'bg-rose-500/15 text-rose-400 group-hover:bg-rose-500/25'}`}>
             {changeType === 'up' ? '↑' : '↓'} {change}
           </span>
         )}
@@ -134,17 +101,19 @@ function StatCard({
   )
 }
 
-// Design C: Site list item
+// Design C: Site list item with enhanced animations
 function SiteListItem({ 
   site, 
   latest, 
   health, 
-  onClick 
+  onClick,
+  index = 0
 }: { 
   site: Site
   latest: SiteTelemetry | null
   health: SiteHealth
   onClick: () => void
+  index?: number
 }) {
   const healthColors = {
     healthy: 'from-emerald-400 to-cyan-500',
@@ -158,27 +127,75 @@ function SiteListItem({
     critical: 'bg-rose-400',
   }
   
+  const healthText = {
+    healthy: 'text-emerald-400',
+    warning: 'text-amber-400',
+    critical: 'text-rose-400',
+  }
+  
   const powerPercent = latest?.power ? Math.min((latest.power / 300) * 100, 100) : 0
   const efficiency = latest?.power && latest?.power > 0 ? Math.min((latest.power / 250) * 100, 100) : 0
   
   return (
-    <div className="site-list-item" onClick={onClick}>
-      <div className={`dc-site-avatar bg-gradient-to-br ${healthColors[health]}`}>
+    <div 
+      className="site-list-item group animate-fade-in cursor-pointer"
+      onClick={onClick}
+      style={{ animationDelay: `${index * 100}ms` }}
+    >
+      <div className={`dc-site-avatar bg-gradient-to-br ${healthColors[health]} transition-all duration-300 group-hover:scale-105 group-hover:shadow-lg`}>
         {site.name.substring(0, 2).toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="font-medium text-white text-sm truncate">{site.name}</span>
-          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${healthDot[health]}`}></span>
+          <span className="font-medium text-white text-sm truncate group-hover:text-emerald-300 transition-colors duration-200">{site.name}</span>
+          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${healthDot[health]} animate-pulse`}></span>
         </div>
         <div className="flex items-center justify-between mt-2">
-          <span className="text-xs text-emerald-400 font-medium">{latest?.power ? `${latest.power} kW` : '--'}</span>
-          <span className="text-xs text-slate-500">{efficiency.toFixed(1)}%</span>
+          <span className={`text-xs font-medium ${healthText[health]} transition-all duration-200 group-hover:scale-105 transform origin-left`}>{latest?.power ? `${latest.power} kW` : '--'}</span>
+          <span className="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">{efficiency.toFixed(1)}%</span>
         </div>
-        <div className="dc-power-bar mt-1">
-          <div className="dc-power-bar-fill" style={{ width: `${powerPercent}%` }}></div>
+        <div className="dc-power-bar mt-1 overflow-hidden">
+          <div 
+            className="dc-power-bar-fill transition-all duration-500 ease-out group-hover:shadow-[0_0_10px_rgba(52,211,153,0.3)]" 
+            style={{ width: `${powerPercent}%` }}
+          ></div>
         </div>
       </div>
+    </div>
+  )
+}
+
+// Navigation Pill Component
+function NavPill({ 
+  icon, 
+  label, 
+  active, 
+  onClick 
+}: { 
+  icon: React.ReactNode
+  label: string
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button 
+      className={`dc-nav-pill group transition-all duration-300 ${active ? 'active' : ''}`}
+      onClick={onClick}
+    >
+      <span className="transition-transform duration-200 group-hover:scale-110">{icon}</span>
+      <span>{label}</span>
+    </button>
+  )
+}
+
+// Empty State Component
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full py-12 animate-fade-in">
+      <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mb-4">
+        <IconSun size={32} className="text-slate-600" />
+      </div>
+      <p className="text-slate-500 text-sm">{message}</p>
     </div>
   )
 }
@@ -294,19 +311,20 @@ export default function DashboardPage() {
 
   const healthyCount = siteRows.filter(r => r.health === 'healthy').length
   const warningCount = siteRows.filter(r => r.health === 'warning').length
+  const totalPower = (statsOverview?.total_power || 0) / 1000
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen animate-fade-in">
       {/* Header - Design C Style */}
-      <header className="px-6 py-5 border-b border-dark-border">
+      <header className="px-6 py-5 border-b border-dark-border bg-dark-bg/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
+            <div className="flex items-center gap-3 group">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-emerald-500/20">
                 <IconSun size={24} className="text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-white">SolarVN</h1>
+                <h1 className="text-lg font-bold text-white transition-colors duration-200 group-hover:text-emerald-300">SolarVN</h1>
                 <p className="text-xs text-slate-500">Control Center</p>
               </div>
             </div>
@@ -314,47 +332,53 @@ export default function DashboardPage() {
             <div className="h-8 w-px bg-dark-border mx-2"></div>
             
             <nav className="flex items-center gap-2">
-              <button 
-                className={`dc-nav-pill ${activeTab === 'overview' ? 'active' : ''}`}
-                onClick={() => setActiveTab('overview')}
-              >
-                <IconActivity size={16} />
-                Tổng quan
-              </button>
-              <button 
-                className={`dc-nav-pill ${activeTab === 'details' ? 'active' : ''}`}
-                onClick={() => setActiveTab('details')}
-              >
-                <IconBolt size={16} />
-                Chi tiết
-              </button>
+              <NavPill 
+                icon={<IconActivity size={16} />} 
+                label="Tổng quan" 
+                active={activeTab === 'overview'} 
+                onClick={() => setActiveTab('overview')} 
+              />
+              <NavPill 
+                icon={<IconBolt size={16} />} 
+                label="Chi tiết" 
+                active={activeTab === 'details'} 
+                onClick={() => setActiveTab('details')} 
+              />
             </nav>
           </div>
           
           <div className="flex items-center gap-4">
-            <div className="dc-live-badge">
+            <div className="dc-live-badge animate-pulse">
               <span className="dot"></span>
               <span className="text-xs font-medium text-emerald-400">Live</span>
             </div>
-            <button className="w-9 h-9 rounded-lg bg-white/[0.05] border border-white/10 flex items-center justify-center text-slate-400 hover:text-white transition" onClick={() => fetchStatsOverview()}>
+            <button 
+              className="w-9 h-9 rounded-lg bg-white/[0.05] border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.1] hover:border-white/20 transition-all duration-300 active:scale-95"
+              onClick={() => fetchStatsOverview()}
+            >
               <IconRefresh size={20} />
             </button>
-            <button className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-white font-semibold text-sm">
+            <button className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-white font-semibold text-sm transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/20 active:scale-95">
               M
             </button>
           </div>
         </div>
       </header>
 
-      <main className="p-6">
+      <main className="p-6 space-y-6">
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="text-slate-400">Đang tải...</div>
+            <div className="flex flex-col items-center gap-4 animate-fade-in">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-cyan-500 animate-spin flex items-center justify-center">
+                <IconSun size={24} className="text-white" />
+              </div>
+              <div className="text-slate-400">Đang tải dữ liệu...</div>
+            </div>
           </div>
         ) : (
           <>
-            {/* Stats Grid - Design C */}
-            <div className="grid grid-cols-4 gap-5 mb-6">
+            {/* Stats Grid - Design C with improved spacing */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               <StatCard
                 icon={<IconBolt size={24} className="text-emerald-400" />}
                 title="Tổng Sites"
@@ -362,14 +386,16 @@ export default function DashboardPage() {
                 subtitle={`${healthyCount} online • ${warningCount} warning`}
                 change="+2 mới"
                 changeType="up"
+                delay={0}
               />
               <StatCard
                 icon={<IconSun size={24} className="text-blue-400" />}
                 title="Tổng công suất"
-                value={`${((statsOverview?.total_power || 0) / 1000).toFixed(1)} MW`}
+                value={`${totalPower.toFixed(1)} MW`}
                 subtitle="so với hôm qua"
                 change="+8.2%"
                 changeType="up"
+                delay={100}
               />
               <StatCard
                 icon={<IconBattery size={24} className="text-purple-400" />}
@@ -378,6 +404,7 @@ export default function DashboardPage() {
                 subtitle="so với hôm qua"
                 change="+12.5%"
                 changeType="up"
+                delay={200}
               />
               <StatCard
                 icon={<IconActivity size={24} className="text-amber-400" />}
@@ -386,73 +413,90 @@ export default function DashboardPage() {
                 subtitle="so với hôm qua"
                 change="+2.1%"
                 changeType="up"
+                delay={300}
               />
             </div>
 
-            {/* Map + Sites Row */}
-            <div className="grid grid-cols-3 gap-5 mb-6">
+            {/* Map + Sites Row - Improved grid */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
               {/* Map */}
-              <div className="col-span-2">
-                <div className="dc-card p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold text-white">Vị trí Sites</h3>
-                    <div className="flex items-center gap-3 text-xs">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                        <span className="text-slate-400">Online</span>
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                        <span className="text-slate-400">Warning</span>
-                      </span>
-                    </div>
+              <div className="xl:col-span-2 dc-card p-6 animate-slide-up" style={{ animationDelay: '200ms' }}>
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-3">
+                    <h3 className="font-semibold text-white text-lg">Vị trí Sites</h3>
+                    <span className="px-2 py-1 rounded-lg bg-slate-800/50 text-xs text-slate-400">{sites.length} địa điểm</span>
                   </div>
-                  <div className="map-wrapper" style={{ height: '300px' }}>
-                    <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-500">Loading map...</div>}>
-                      <MapComponent 
-                        siteRows={siteRows}
-                        onSiteClick={(id) => setSelectedSite(sites.find(s => s.id === id) || null)}
-                        selectedSiteId={selectedSite?.id || null}
-                      />
-                    </Suspense>
+                  <div className="flex items-center gap-4 text-xs">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <span className="text-slate-400">Online</span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                      <span className="text-slate-400">Warning</span>
+                    </span>
                   </div>
+                </div>
+                <div className="map-wrapper rounded-xl overflow-hidden" style={{ height: '350px' }}>
+                  <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-500"><div className="animate-spin w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center"><IconMap size={20} /></div></div>}>
+                    <MapComponent 
+                      siteRows={siteRows}
+                      onSiteClick={(id) => setSelectedSite(sites.find(s => s.id === id) || null)}
+                      selectedSiteId={selectedSite?.id || null}
+                    />
+                  </Suspense>
                 </div>
               </div>
               
-              {/* Site List */}
-              <div className="dc-card">
-                <div className="p-4 border-b border-dark-border">
-                  <h3 className="font-semibold text-white">Sites hoạt động</h3>
+              {/* Site List - Improved */}
+              <div className="dc-card animate-slide-up" style={{ animationDelay: '300ms' }}>
+                <div className="p-5 border-b border-dark-border">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-white">Sites hoạt động</h3>
+                    <span className="px-2 py-1 rounded-lg bg-emerald-500/10 text-xs text-emerald-400">{siteRows.length} sites</span>
+                  </div>
                 </div>
-                <div className="max-h-80 overflow-y-auto">
-                  {siteRows.map((row) => (
-                    <SiteListItem
-                      key={row.site.id}
-                      site={row.site}
-                      latest={row.latest}
-                      health={row.health}
-                      onClick={() => setSelectedSite(row.site)}
-                    />
-                  ))}
+                <div className="max-h-[420px] overflow-y-auto scrollbar-thin">
+                  {siteRows.length > 0 ? (
+                    siteRows.map((row, index) => (
+                      <SiteListItem
+                        key={row.site.id}
+                        site={row.site}
+                        latest={row.latest}
+                        health={row.health}
+                        onClick={() => setSelectedSite(row.site)}
+                        index={index}
+                      />
+                    ))
+                  ) : (
+                    <EmptyState message="Chưa có site nào hoạt động" />
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Chart Section */}
-            <div className="dc-card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="font-semibold text-white">Công suất theo thời gian thực</h3>
-                  <p className="text-xs text-slate-500 mt-1">Cập nhật mỗi 15 giây</p>
+            {/* Chart Section - Improved */}
+            <div className="dc-card p-6 animate-slide-up" style={{ animationDelay: '400ms' }}>
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                    <IconChart size={20} className="text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white text-lg">Công suất theo thời gian thực</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Cập nhật mỗi 15 giây</p>
+                  </div>
                 </div>
-                <select className="dc-input w-32">
-                  <option>24 giờ</option>
-                  <option>7 ngày</option>
-                  <option>30 ngày</option>
-                </select>
+                <div className="flex items-center gap-3">
+                  <select className="dc-input w-36 bg-dark-surface border-dark-border text-slate-300 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500/30 transition-all duration-200">
+                    <option>24 giờ</option>
+                    <option>7 ngày</option>
+                    <option>30 ngày</option>
+                  </select>
+                </div>
               </div>
-              <div className="dc-chart-area" style={{ height: '250px' }}>
-                <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-500">Loading chart...</div>}>
+              <div className="dc-chart-area rounded-xl" style={{ height: '280px' }}>
+                <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-500"><div className="animate-pulse">Đang tải biểu đồ...</div></div>}>
                   <Chart data={historyPoints} />
                 </Suspense>
               </div>
