@@ -11,3 +11,5 @@ backend/venv/
 *.sqlite3
 *.db
 
+
+.vercel
