@@ -1,252 +1,520 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
 import axios from 'axios'
+import SiteDetailPanel from '../components/SiteDetailPanel'
+import InverterModelForm from '../components/InverterModelForm'
+import { IconBolt, IconBattery, IconSun, IconThermometer, IconActivity, IconFilter, IconTrash, IconRefresh, IconPlus, IconArrowRight, IconCheckCircle, IconAlertTriangle, IconXCircle, IconChart, IconMap } from '../components/Icons'
 
-// Types
+const Chart = lazy(() => import('./ChartComponent'))
+const MapComponent = lazy(() => import('./MapComponent'))
+
 type Site = {
   id: number
   name: string
   location?: string
   latitude?: number
   longitude?: number
+  ip_address?: string
   device_type?: string
   status: string
-  latest?: SiteTelemetry | null
+  created_at: string
 }
 
 type SiteTelemetry = {
+  id: number
+  inverter_id: number
+  timestamp: string
+  voltage?: number
+  current?: number
   power?: number
   energy_today?: number
   temperature?: number
+  error_code?: string | null
+  is_online?: boolean
 }
+
+type StatsOverview = {
+  total_inverters: number
+  online_inverters: number
+  offline_inverters: number
+  total_power: number
+  total_energy_today: number
+  last_updated?: string | null
+}
+
+type StatsHistoryPoint = {
+  timestamp: string
+  inverter_id?: number | null
+  power?: number
+  energy_today?: number
+  is_online?: boolean | null
+}
+
+type FormData = {
+  name: string
+  location: string
+  latitude: string
+  longitude: string
+  ip_address: string
+  device_type: string
+}
+
+type RealtimeState = 'connecting' | 'live' | 'offline'
+type SiteHealth = 'healthy' | 'warning' | 'critical'
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) || '/api'
 
-// Site Card Component (Design A style)
-function SiteCard({ site, index = 0 }: { site: any; index?: number }) {
-  const statusClass = site.status === 'online' 
-    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-    : 'bg-amber-50 text-amber-700 border border-amber-200'
+// Design C: Card component with glow effect
+function StatCard({ 
+  icon, 
+  title, 
+  value, 
+  subtitle, 
+  change, 
+  changeType = 'up',
+  delay = 0
+}: { 
+  icon: React.ReactNode
+  title: string
+  value: string
+  subtitle: string
+  change?: string
+  changeType?: 'up' | 'down'
+  delay?: number
+}) {
+  return (
+    <div 
+      className="dc-stat-card group animate-slide-up"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div className="dc-stat-icon group-hover:scale-110 transition-transform duration-300">{icon}</div>
+        {change && (
+          <span className={`text-xs font-medium px-2 py-1 rounded transition-all duration-300 ${changeType === 'up' ? 'bg-emerald-500/15 text-emerald-400 group-hover:bg-emerald-500/25' : 'bg-rose-500/15 text-rose-400 group-hover:bg-rose-500/25'}`}>
+            {changeType === 'up' ? '↑' : '↓'} {change}
+          </span>
+        )}
+      </div>
+      <div className="text-4xl font-bold text-white dc-glow-text mb-1">{value}</div>
+      <div className="text-sm text-slate-500">{title}</div>
+      {subtitle && <div className="flex items-center gap-2 mt-3 text-xs text-slate-500">{subtitle}</div>}
+    </div>
+  )
+}
+
+// Design C: Site list item with enhanced animations
+function SiteListItem({ 
+  site, 
+  latest, 
+  health, 
+  onClick,
+  index = 0
+}: { 
+  site: Site
+  latest: SiteTelemetry | null
+  health: SiteHealth
+  onClick: () => void
+  index?: number
+}) {
+  const healthColors = {
+    healthy: 'from-emerald-400 to-cyan-500',
+    warning: 'from-amber-400 to-orange-500',
+    critical: 'from-rose-400 to-red-500',
+  }
+  
+  const healthDot = {
+    healthy: 'bg-emerald-400',
+    warning: 'bg-amber-400',
+    critical: 'bg-rose-400',
+  }
+  
+  const healthText = {
+    healthy: 'text-emerald-400',
+    warning: 'text-amber-400',
+    critical: 'text-rose-400',
+  }
+  
+  const powerPercent = latest?.power ? Math.min((latest.power / 300) * 100, 100) : 0
+  const efficiency = latest?.power && latest?.power > 0 ? Math.min((latest.power / 250) * 100, 100) : 0
   
   return (
-    <div className="bg-white rounded-2xl p-4 mb-3 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.03)] border border-gray-200 animate-fade-in cursor-pointer" style={{ animationDelay: `${index * 100}ms` }}>
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="font-medium text-gray-900">{site.name}</h3>
-            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusClass}`}>
-              {site.status === 'online' ? 'Online' : 'Offline'}
-            </span>
-          </div>
-          <p className="text-xs text-gray-500 mt-1">{site.location || 'No location'} • {site.device_type || 'Generic'}</p>
-        </div>
-        <div className="text-right">
-          <div className={`text-lg font-bold ${site.status === 'online' ? 'text-emerald-600' : 'text-amber-600'}`}>
-            {site.latest?.power ? `${site.latest.power} kW` : '--'}
-          </div>
-          <div className="text-[10px] text-gray-500">Công suất</div>
-        </div>
+    <div 
+      className="site-list-item group animate-fade-in cursor-pointer"
+      onClick={onClick}
+      style={{ animationDelay: `${index * 100}ms` }}
+    >
+      <div className={`dc-site-avatar bg-gradient-to-br ${healthColors[health]} transition-all duration-300 group-hover:scale-105 group-hover:shadow-lg`}>
+        {site.name.substring(0, 2).toUpperCase()}
       </div>
-      {/* Details row */}
-      <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-100">
-        <div>
-          <div className="text-xs text-gray-500">Sản lượng hôm nay</div>
-          <div className="text-sm font-medium text-gray-900">{site.latest?.energy_today ? `${site.latest.energy_today.toFixed(1)} kWh` : '--'}</div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-white text-sm truncate group-hover:text-emerald-300 transition-colors duration-200">{site.name}</span>
+          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${healthDot[health]} animate-pulse`}></span>
         </div>
-        <div>
-          <div className="text-xs text-gray-500">Nhiệt độ</div>
-          <div className="text-sm font-medium text-gray-900">{site.latest?.temperature ? `${site.latest.temperature}°C` : '--'}</div>
+        <div className="flex items-center justify-between mt-2">
+          <span className={`text-xs font-medium ${healthText[health]} transition-all duration-200 group-hover:scale-105 transform origin-left`}>{latest?.power ? `${latest.power} kW` : '--'}</span>
+          <span className="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">{efficiency.toFixed(1)}%</span>
         </div>
-        <div>
-          <div className="text-xs text-gray-500">Hiệu suất</div>
-          <div className="text-sm font-medium text-emerald-600">
-            {site.latest?.power ? `${Math.min((site.latest.power / 250) * 100, 100).toFixed(1)}%` : '--'}
-          </div>
+        <div className="dc-power-bar mt-1 overflow-hidden">
+          <div 
+            className="dc-power-bar-fill transition-all duration-500 ease-out group-hover:shadow-[0_0_10px_rgba(52,211,153,0.3)]" 
+            style={{ width: `${powerPercent}%` }}
+          ></div>
         </div>
       </div>
     </div>
   )
 }
 
+// Navigation Pill Component
+function NavPill({ 
+  icon, 
+  label, 
+  active, 
+  onClick 
+}: { 
+  icon: React.ReactNode
+  label: string
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button 
+      className={`dc-nav-pill group transition-all duration-300 ${active ? 'active' : ''}`}
+      onClick={onClick}
+    >
+      <span className="transition-transform duration-200 group-hover:scale-110">{icon}</span>
+      <span>{label}</span>
+    </button>
+  )
+}
+
+// Empty State Component
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full py-12 animate-fade-in">
+      <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mb-4">
+        <IconSun size={32} className="text-slate-600" />
+      </div>
+      <p className="text-slate-500 text-sm">{message}</p>
+    </div>
+  )
+}
+
 export default function DashboardPage() {
   const [sites, setSites] = useState<Site[]>([])
+  const [selectedSite, setSelectedSite] = useState<Site | null>(null)
+  const [statsOverview, setStatsOverview] = useState<StatsOverview | null>(null)
+  const [latestBySite, setLatestBySite] = useState<Record<number, SiteTelemetry>>({})
+  const [historyPoints, setHistoryPoints] = useState<StatsHistoryPoint[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeNav, setActiveNav] = useState('home')
+  const [activeTab, setActiveTab] = useState<'overview' | 'details'>('overview')
+  const [realtimeState, setRealtimeState] = useState<RealtimeState>('connecting')
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null)
+  const selectedSiteIdRef = useRef<number | null>(null)
 
-  // Fetch sites
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const resp = await axios.get(`${API_BASE}/inverters`)
-        const sitesData = resp.data as Site[]
-        
-        // Fetch latest for each site
-        const withLatest = await Promise.all(
-          sitesData.map(async (site) => {
-            try {
-              const latest = await axios.get(`${API_BASE}/inverters/${site.id}/latest`)
-              return { ...site, latest: latest.data as SiteTelemetry }
-            } catch {
-              return { ...site, latest: null }
-            }
-          })
-        )
-        setSites(withLatest)
-        setLoading(false)
-      } catch (err) {
-        console.error('Failed to fetch sites', err)
-        setLoading(false)
-      }
+  // Helper functions
+  const deriveRegion = (site: Site) => {
+    if (site.latitude !== undefined && site.latitude !== null) {
+      if (site.latitude >= 16) return 'Miền Bắc'
+      if (site.latitude >= 12) return 'Miền Trung'
+      return 'Miền Nam'
     }
-    fetchData()
+    return 'Miền Nam'
+  }
+
+  const getSiteHealth = (site: Site, latest: SiteTelemetry | null): SiteHealth => {
+    if (!latest) return site.status === 'online' ? 'warning' : 'critical'
+    if (!latest.is_online) return 'critical'
+    if ((latest.power || 0) < 800) return 'warning'
+    return 'healthy'
+  }
+
+  // Fetch data
+  const fetchSites = async () => {
+    try {
+      const resp = await axios.get(`${API_BASE}/inverters`)
+      setSites(resp.data as Site[])
+      setLoading(false)
+    } catch (err) {
+      console.error('Failed to fetch sites', err)
+      setLoading(false)
+    }
+  }
+
+  const fetchStatsOverview = async () => {
+    try {
+      const resp = await axios.get(`${API_BASE}/stats/overview`)
+      setStatsOverview(resp.data as StatsOverview)
+    } catch {
+      setStatsOverview(null)
+    }
+  }
+
+  const fetchLatestForSites = async (sitesToUpdate: Site[]) => {
+    const responses = await Promise.all(
+      sitesToUpdate.map(async (site) => {
+        try {
+          const resp = await axios.get(`${API_BASE}/inverters/${site.id}/latest`)
+          return resp.data as SiteTelemetry
+        } catch {
+          return null
+        }
+      }),
+    )
+
+    const nextLatest: Record<number, SiteTelemetry> = {}
+    responses.forEach((reading) => {
+      if (reading) nextLatest[reading.inverter_id] = reading
+    })
+    setLatestBySite(nextLatest)
+  }
+
+  const fetchHistory = async (id: number) => {
+    try {
+      const resp = await axios.get(`${API_BASE}/stats/history?inverter_id=${id}`)
+      setHistoryPoints(resp.data as StatsHistoryPoint[])
+    } catch {
+      setHistoryPoints([])
+    }
+  }
+
+  useEffect(() => {
+    fetchSites()
+    fetchStatsOverview()
   }, [])
 
-  const onlineCount = sites.filter(s => s.status === 'online').length
-  const totalPower = sites.reduce((sum, s) => sum + (s.latest?.power || 0), 0)
-  const totalEnergy = sites.reduce((sum, s) => sum + (s.latest?.energy_today || 0), 0)
+  useEffect(() => {
+    if (sites.length > 0) {
+      fetchLatestForSites(sites)
+    }
+  }, [sites])
+
+  useEffect(() => {
+    if (selectedSite) {
+      fetchHistory(selectedSite.id)
+    }
+  }, [selectedSite])
+
+  // Compute site rows
+  const siteRows = useMemo(() => {
+    return sites.map((site) => {
+      const latest = latestBySite[site.id] ?? null
+      const region = deriveRegion(site)
+      const cluster = site.device_type ? `${site.device_type.toUpperCase()} Cluster` : 'Portfolio Cluster'
+      const health = getSiteHealth(site, latest)
+      const currentPower = latest?.power ?? 0
+      const energyToday = latest?.energy_today ?? 0
+      const temperature = latest?.temperature ?? null
+      return { site, latest, region, cluster, health, currentPower, energyToday, temperature }
+    })
+  }, [sites, latestBySite])
+
+  const healthyCount = siteRows.filter(r => r.health === 'healthy').length
+  const warningCount = siteRows.filter(r => r.health === 'warning').length
+  const totalPower = (statsOverview?.total_power || 0) / 1000
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] pb-20 font-sans">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-gray-200 px-5 py-4">
+    <div className="min-h-screen animate-fade-in">
+      {/* Header - Design C Style */}
+      <header className="px-6 py-5 border-b border-dark-border bg-dark-bg/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold text-gray-900">SolarVN</h1>
-            <p className="text-xs text-gray-500">Control Center</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-xs font-medium text-emerald-700">Live</span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 group">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-emerald-500/20">
+                <IconSun size={24} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-white transition-colors duration-200 group-hover:text-emerald-300">SolarVN</h1>
+                <p className="text-xs text-slate-500">Control Center</p>
+              </div>
             </div>
+            
+            <div className="h-8 w-px bg-dark-border mx-2"></div>
+            
+            <nav className="flex items-center gap-2">
+              <NavPill 
+                icon={<IconActivity size={16} />} 
+                label="Tổng quan" 
+                active={activeTab === 'overview'} 
+                onClick={() => setActiveTab('overview')} 
+              />
+              <NavPill 
+                icon={<IconBolt size={16} />} 
+                label="Chi tiết" 
+                active={activeTab === 'details'} 
+                onClick={() => setActiveTab('details')} 
+              />
+            </nav>
           </div>
-        </div>
-        
-        {/* Quick Stats */}
-        <div className="grid grid-cols-4 gap-3 mt-4">
-          <div className="text-center">
-            <div className="text-xl font-bold text-gray-900">{sites.length}</div>
-            <div className="text-[10px] text-gray-500 uppercase tracking-wider">Sites</div>
-          </div>
-          <div className="text-center">
-            <div className="text-xl font-bold text-emerald-600">{onlineCount}</div>
-            <div className="text-[10px] text-gray-500 uppercase tracking-wider">Online</div>
-          </div>
-          <div className="text-center">
-            <div className="text-xl font-bold text-gray-900">{(totalPower / 1000).toFixed(1)}</div>
-            <div className="text-[10px] text-gray-500 uppercase tracking-wider">MW</div>
-          </div>
-          <div className="text-center">
-            <div className="text-xl font-bold text-amber-600">{totalEnergy.toFixed(1)}</div>
-            <div className="text-[10px] text-gray-500 uppercase tracking-wider">MWh</div>
+          
+          <div className="flex items-center gap-4">
+            <div className="dc-live-badge animate-pulse">
+              <span className="dot"></span>
+              <span className="text-xs font-medium text-emerald-400">Live</span>
+            </div>
+            <button 
+              className="w-9 h-9 rounded-lg bg-white/[0.05] border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.1] hover:border-white/20 transition-all duration-300 active:scale-95"
+              onClick={() => fetchStatsOverview()}
+            >
+              <IconRefresh size={20} />
+            </button>
+            <button className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-white font-semibold text-sm transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/20 active:scale-95">
+              M
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="px-5 py-5">
+      <main className="p-6 space-y-6">
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center animate-spin">
-                <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
+            <div className="flex flex-col items-center gap-4 animate-fade-in">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-cyan-500 animate-spin flex items-center justify-center">
+                <IconSun size={24} className="text-white" />
               </div>
-              <div className="text-gray-500">Đang tải...</div>
+              <div className="text-slate-400">Đang tải dữ liệu...</div>
             </div>
           </div>
         ) : (
           <>
-            {/* Map Section - Simple iframe placeholder */}
-            <div className="mb-6">
-              <div className="h-[240px] w-full rounded-2xl overflow-hidden bg-gray-100 border border-gray-200">
-                {sites.length > 0 ? (
-                  <iframe 
-                    title="Map"
-                    width="100%" 
-                    height="100%" 
-                    frameBorder="0"
-                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${(sites[0].longitude || 106.6) - 1}%2C${(sites[0].latitude || 10.8) - 1}%2C${(sites[0].longitude || 106.6) + 1}%2C${(sites[0].latitude || 10.8) + 1}&layer=mapnik`}
-                    style={{ filter: 'grayscale(100%)' }}
-                  />
-                ) : (
-                  <div className="h-full flex items-center justify-center text-gray-400">Chưa có dữ liệu bản đồ</div>
-                )}
+            {/* Stats Grid - Design C with improved spacing */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <StatCard
+                icon={<IconBolt size={24} className="text-emerald-400" />}
+                title="Tổng Sites"
+                value={sites.length.toString()}
+                subtitle={`${healthyCount} online • ${warningCount} warning`}
+                change="+2 mới"
+                changeType="up"
+                delay={0}
+              />
+              <StatCard
+                icon={<IconSun size={24} className="text-blue-400" />}
+                title="Tổng công suất"
+                value={`${totalPower.toFixed(1)} MW`}
+                subtitle="so với hôm qua"
+                change="+8.2%"
+                changeType="up"
+                delay={100}
+              />
+              <StatCard
+                icon={<IconBattery size={24} className="text-purple-400" />}
+                title="Sản lượng hôm nay"
+                value={`${(statsOverview?.total_energy_today || 0).toFixed(1)} MWh`}
+                subtitle="so với hôm qua"
+                change="+12.5%"
+                changeType="up"
+                delay={200}
+              />
+              <StatCard
+                icon={<IconActivity size={24} className="text-amber-400" />}
+                title="Hiệu suất TB"
+                value="96.4%"
+                subtitle="so với hôm qua"
+                change="+2.1%"
+                changeType="up"
+                delay={300}
+              />
+            </div>
+
+            {/* Map + Sites Row - Improved grid */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              {/* Map */}
+              <div className="xl:col-span-2 dc-card p-6 animate-slide-up" style={{ animationDelay: '200ms' }}>
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-3">
+                    <h3 className="font-semibold text-white text-lg">Vị trí Sites</h3>
+                    <span className="px-2 py-1 rounded-lg bg-slate-800/50 text-xs text-slate-400">{sites.length} địa điểm</span>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <span className="text-slate-400">Online</span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                      <span className="text-slate-400">Warning</span>
+                    </span>
+                  </div>
+                </div>
+                <div className="map-wrapper rounded-xl overflow-hidden" style={{ height: '350px' }}>
+                  <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-500"><div className="animate-spin w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center"><IconMap size={20} /></div></div>}>
+                    <MapComponent 
+                      siteRows={siteRows}
+                      onSiteClick={(id) => setSelectedSite(sites.find(s => s.id === id) || null)}
+                      selectedSiteId={selectedSite?.id || null}
+                    />
+                  </Suspense>
+                </div>
               </div>
-              <div className="flex justify-between items-center mt-3">
-                <span className="text-xs text-gray-500">{sites.length} địa điểm trên toàn quốc</span>
-                <button className="text-xs font-medium text-emerald-600 flex items-center gap-1">
-                  Xem bản đồ lớn
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
+              
+              {/* Site List - Improved */}
+              <div className="dc-card animate-slide-up" style={{ animationDelay: '300ms' }}>
+                <div className="p-5 border-b border-dark-border">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-white">Sites hoạt động</h3>
+                    <span className="px-2 py-1 rounded-lg bg-emerald-500/10 text-xs text-emerald-400">{siteRows.length} sites</span>
+                  </div>
+                </div>
+                <div className="max-h-[420px] overflow-y-auto scrollbar-thin">
+                  {siteRows.length > 0 ? (
+                    siteRows.map((row, index) => (
+                      <SiteListItem
+                        key={row.site.id}
+                        site={row.site}
+                        latest={row.latest}
+                        health={row.health}
+                        onClick={() => setSelectedSite(row.site)}
+                        index={index}
+                      />
+                    ))
+                  ) : (
+                    <EmptyState message="Chưa có site nào hoạt động" />
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Site List */}
-            <section>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-semibold text-gray-900">Danh sách Site</h2>
-                <select className="text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-gray-600">
-                  <option>Tất cả khu vực</option>
-                  <option>Miền Bắc</option>
-                  <option>Miền Trung</option>
-                  <option>Miền Nam</option>
-                </select>
+            {/* Chart Section - Improved */}
+            <div className="dc-card p-6 animate-slide-up" style={{ animationDelay: '400ms' }}>
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                    <IconChart size={20} className="text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white text-lg">Công suất theo thời gian thực</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Cập nhật mỗi 15 giây</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <select className="dc-input w-36 bg-dark-surface border-dark-border text-slate-300 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500/30 transition-all duration-200">
+                    <option>24 giờ</option>
+                    <option>7 ngày</option>
+                    <option>30 ngày</option>
+                  </select>
+                </div>
               </div>
-              
-              {sites.map((site, index) => (
-                <SiteCard key={site.id} site={site} index={index} />
-              ))}
-            </section>
+              <div className="dc-chart-area rounded-xl" style={{ height: '280px' }}>
+                <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-500"><div className="animate-pulse">Đang tải biểu đồ...</div></div>}>
+                  <Chart data={historyPoints} />
+                </Suspense>
+              </div>
+            </div>
           </>
         )}
       </main>
 
-      {/* FAB */}
-      <button className="fixed bottom-20 right-5 w-14 h-14 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 z-[90] active:scale-95 transition-transform">
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-        </svg>
-      </button>
-
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-200 px-0 py-3 z-100">
-        <div className="flex justify-around">
-          <button 
-            className={`flex flex-col items-center gap-1 ${activeNav === 'home' ? 'text-emerald-600' : 'text-gray-500'}`}
-            onClick={() => setActiveNav('home')}
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            <span className="text-[11px] font-medium">Tổng quan</span>
-          </button>
-          <button 
-            className={`flex flex-col items-center gap-1 ${activeNav === 'map' ? 'text-emerald-600' : 'text-gray-500'}`}
-            onClick={() => setActiveNav('map')}
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-            </svg>
-            <span className="text-[11px] font-medium">Bản đồ</span>
-          </button>
-          <button className="flex flex-col items-center gap-1 text-gray-500">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <span className="text-[11px] font-medium">Biểu đồ</span>
-          </button>
-          <button className="flex flex-col items-center gap-1 text-gray-500">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span className="text-[11px] font-medium">Cài đặt</span>
-          </button>
-        </div>
-      </nav>
+      {/* Site Detail Modal */}
+      {selectedSite && (
+        <SiteDetailPanel
+          site={selectedSite}
+          latest={latestBySite[selectedSite.id] ?? null}
+          health={getSiteHealth(selectedSite, latestBySite[selectedSite.id] ?? null)}
+          historyPoints={historyPoints}
+          onClose={() => setSelectedSite(null)}
+        />
+      )}
     </div>
   )
 }
