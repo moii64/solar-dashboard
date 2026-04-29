@@ -317,8 +317,8 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen animate-fade-in">
       {/* Header - Design C Style */}
-      <header className="px-4 sm:px-6 py-4 sm:py-5 border-b border-dark-border bg-dark-bg/80 backdrop-blur-xl sticky top-0 z-50">
-        <div className="flex flex-col gap-3 sm:gap-0 sm:flex-row sm:items-center sm:justify-between">
+      <header className="px-3 sm:px-6 py-3 sm:py-5 border-b border-dark-border bg-dark-bg/80 backdrop-blur-xl sticky top-0 z-50">
+        <div className="flex flex-col gap-2 sm:gap-0 sm:flex-row sm:items-center sm:justify-between min-h-[56px] sm:min-h-0">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             <div className="flex items-center gap-3 group">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-emerald-500/20">
@@ -502,7 +502,7 @@ export default function DashboardPage() {
                   </select>
                 </div>
               </div>
-              <div className="dc-chart-area rounded-xl" style={{ height: hasHistoryData ? '280px' : '200px' }}>
+              <div className="dc-chart-area rounded-xl" style={{ height: hasHistoryData ? (window.innerWidth < 768 ? '220px' : '280px') : '160px' }}>
                 {hasHistoryData ? (
                   <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-500"><div className="animate-pulse">Đang tải biểu đồ...</div></div>}>
                     <Chart data={historyPoints} />
@@ -513,10 +513,10 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="dc-card p-4 sm:p-5 bg-slate-900/30">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <p className="text-sm text-slate-300">Layout đã tối ưu cho trạng thái ít dữ liệu để màn hình gọn và cân đối hơn.</p>
-                <span className="text-xs text-slate-500">UI Polish Pass · Empty-state balancing</span>
+            <div className="dc-card p-3 sm:p-4 sm:p-5 bg-slate-900/30">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+                <p className="text-xs sm:text-sm text-slate-300">Layout đã tối ưu cho trạng thái ít dữ liệu để màn hình gọn và cân đối hơn.</p>
+                <span className="text-[10px] sm:text-xs text-slate-500 whitespace-nowrap">UI Polish Pass · Empty-state balancing</span>
               </div>
             </div>
           </div>
