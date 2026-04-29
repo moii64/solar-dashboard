@@ -100,11 +100,11 @@ Cập nhật gần nhất: 2026-04-28 06:57 (GMT+7)
   - URL: https://frontend-fawn-ten-90.vercel.app (alias: https://solarvn-app.vercel.app)
   - Branding changed to "SolarVN Control Center"
 - Đã deploy backend lên Render.com:
-  - URL: https://solar-dashboard-dzxk.onrender.com
-  - Health check: https://solar-dashboard-dzxk.onrender.com/healthz OK
+  - URL: https://solar-dashboard-xs4b.onrender.com
+  - Health check: https://solar-dashboard-xs4b.onrender.com/healthz OK
 - Đã cấu hình frontend gọi backend production:
-  - `VITE_API_BASE=https://solar-dashboard-dzxk.onrender.com`
-  - `VITE_WS_URL=wss://solar-dashboard-dzxk.onrender.com/ws/inverters`
+  - `VITE_API_BASE=https://solar-dashboard-xs4b.onrender.com`
+  - `VITE_WS_URL=wss://solar-dashboard-xs4b.onrender.com/ws/inverters`
 - Đã push repository lên GitHub:
   - Repo: https://github.com/moii64/solar-dashboard
   - Commit baseline: `a2bd7cd`

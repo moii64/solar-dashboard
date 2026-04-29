@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:prod": "node scripts/vercel-check.cjs",
+    "check:prod:brief": "node scripts/vercel-check.cjs --brief"
   },
   "dependencies": {
     "@deck.gl/core": "^9.0.16",
