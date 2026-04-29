@@ -377,8 +377,10 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            {/* Stats Grid - Design C with improved spacing */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Container for content - limits width for readability on large screens */}
+            <div className="max-w-7xl mx-auto space-y-6">
+              {/* Stats Grid - Design C with improved spacing */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               <StatCard
                 icon={<IconBolt size={24} className="text-emerald-400" />}
                 title="Tổng Sites"
@@ -500,6 +502,7 @@ export default function DashboardPage() {
                   <Chart data={historyPoints} />
                 </Suspense>
               </div>
+            </div>
             </div>
           </>
         )}
