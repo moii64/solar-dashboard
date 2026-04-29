@@ -365,7 +365,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="p-6 space-y-6">
+      <main className="flex-1 p-6">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="flex flex-col items-center gap-4 animate-fade-in">
@@ -376,11 +376,10 @@ export default function DashboardPage() {
             </div>
           </div>
         ) : (
-          <>
-            {/* Container for content - limits width for readability on large screens */}
-            <div className="max-w-7xl mx-auto space-y-6">
-              {/* Stats Grid - Design C with improved spacing */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="max-w-7xl mx-auto space-y-8 pb-12">
+            {/* Stats Grid - Modern 4-col layout */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+
               <StatCard
                 icon={<IconBolt size={24} className="text-emerald-400" />}
                 title="Tổng Sites"
@@ -503,8 +502,7 @@ export default function DashboardPage() {
                 </Suspense>
               </div>
             </div>
-            </div>
-          </>
+          </div>
         )}
       </main>
 
