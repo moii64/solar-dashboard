@@ -776,7 +776,7 @@ async def on_shutdown():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=os.getenv("API_CORS_ORIGINS", "https://solar-dashboard-rouge.vercel.app,https://app.solarvn.com").split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
