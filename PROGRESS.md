@@ -157,8 +157,8 @@ Cập nhật gần nhất: 2026-04-28 06:57 (GMT+7)
 ### 2. Thêm micro-animations & transitions (Priority: Medium)
 - [ ] Card hover effects tinh tế hơn (scale + shadow)
 - [ ] Smooth transitions cho chart data updates
-- [ ] Loading skeleton cho map/chart khi fetch data
-- [ ] Status badge pulse animation cho live indicator
+- [x] Loading skeleton cho map/chart khi fetch data
+- [x] Status badge pulse animation cho live indicator
 - **Deadline:** 2026-05-02
 - **Owner:** Frontend team
 

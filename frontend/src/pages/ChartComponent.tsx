@@ -28,14 +28,19 @@ function formatMetric(value?: number | null, digits = 0) {
 export default function ChartComponent({ data }: ChartProps) {
   if (!data || data.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center rounded-3xl border border-dashed border-white/10 bg-white/5 text-slate-400">
-        Chưa có dữ liệu lịch sử cho site này
+      <div className="relative flex h-full items-center justify-center rounded-3xl border border-dashed border-white/10 bg-white/5 p-6 text-slate-400">
+        <div className="absolute inset-x-6 bottom-8 top-8 opacity-55">
+          <div className="dc-skeleton h-full rounded-2xl" />
+        </div>
+        <div className="relative z-10 rounded-xl border border-white/10 bg-slate-950/55 px-4 py-2 text-center text-sm backdrop-blur-sm">
+          Chưa có dữ liệu lịch sử cho site này
+        </div>
       </div>
     )
   }
 
   return (
-    <div style={{ width: '100%', height: 360 }}>
+    <div className="transition-opacity duration-500 ease-out" style={{ width: '100%', height: 360 }}>
       <LineChart data={data} margin={{ top: 10, right: 16, bottom: 0, left: -12 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#243041" />
         <XAxis

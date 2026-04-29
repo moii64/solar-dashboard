@@ -548,10 +548,16 @@ export default function MapComponent({ siteRows, onSiteClick, selectedSiteId }: 
       </div>
 
       {!mapLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80">
-          <div className="flex items-center gap-2 text-slate-400">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
-            Đang tải bản đồ...
+        <div className="absolute inset-0 bg-slate-900/85 p-4">
+          <div className="dc-skeleton h-full w-full rounded-2xl border border-white/10">
+            <div className="absolute left-4 top-4 h-20 w-40 rounded-xl bg-white/[0.06]" />
+            <div className="absolute right-4 top-4 h-20 w-10 rounded-xl bg-white/[0.06]" />
+            <div className="absolute bottom-4 left-4 h-6 w-28 rounded-lg bg-white/[0.06]" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="rounded-xl border border-cyan-400/20 bg-slate-950/60 px-4 py-2 text-sm text-slate-300 backdrop-blur-sm">
+                Đang tải bản đồ...
+              </div>
+            </div>
           </div>
         </div>
       )}
