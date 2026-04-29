@@ -1,18 +1,20 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import DashboardPage from './pages/DashboardPage'
+import './styles/design-a.css'
 
 export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
-  // Design C - Dark Theme (always dark)
+  // Design A - Light Theme (Modern Minimal App)
   useEffect(() => {
-    document.documentElement.classList.add('dark')
-    localStorage.setItem('darkMode', 'true')
+    document.documentElement.classList.remove('dark')
+    document.documentElement.classList.add('design-a')
+    localStorage.setItem('darkMode', 'false')
   }, [])
 
   return (
-    <div className="dark min-h-screen bg-dark-bg text-slate-100">
+    <div className="design-a min-h-screen bg-[#FAFAFA]">
       <Routes>
         <Route path="/" element={<DashboardPage />} />
       </Routes>
