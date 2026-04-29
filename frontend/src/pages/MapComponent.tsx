@@ -471,10 +471,10 @@ export default function MapComponent({ siteRows, onSiteClick, selectedSiteId }: 
       <div ref={mapContainer} className="h-full w-full" />
 
       {/* Layer Controls */}
-      <div className="absolute left-3 top-3 z-10 flex flex-col gap-2">
-        <div className="rounded-xl border border-white/10 bg-slate-900/90 p-3 backdrop-blur-sm">
+      <div className="absolute left-2 sm:left-3 top-2 sm:top-3 z-10 flex flex-col gap-2 max-w-[78vw] sm:max-w-none">
+        <div className="rounded-xl border border-white/10 bg-slate-900/90 p-2.5 sm:p-3 backdrop-blur-sm">
           <div className="mb-2 text-[10px] font-medium uppercase tracking-wider text-slate-400">Lớp hiển thị</div>
-          <div className="flex flex-col gap-1.5">
+          <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-col">
             {HAS_WEATHER_TILE ? (
               <LayerToggle
                 label={`Weather · ${weatherMeta.title}`}
@@ -509,7 +509,7 @@ export default function MapComponent({ siteRows, onSiteClick, selectedSiteId }: 
             Thiếu VITE_WEATHER_TILE_URL nên weather overlay đang tắt.
           </div>
         ) : (
-          <div className="rounded-xl border border-cyan-400/20 bg-slate-900/90 p-3 backdrop-blur-sm">
+          <div className="rounded-xl border border-cyan-400/20 bg-slate-900/90 p-2.5 sm:p-3 backdrop-blur-sm">
             <div className="text-[10px] font-medium uppercase tracking-wider text-slate-400">Weather overlay</div>
             <div className="mt-1 text-xs text-slate-200">{weatherMeta.title} ({weatherMeta.unit})</div>
 
@@ -537,7 +537,7 @@ export default function MapComponent({ siteRows, onSiteClick, selectedSiteId }: 
         )}
 
         {/* Legend */}
-        <div className="rounded-xl border border-white/10 bg-slate-900/90 p-3 backdrop-blur-sm">
+        <div className="hidden sm:block rounded-xl border border-white/10 bg-slate-900/90 p-3 backdrop-blur-sm">
           <div className="mb-2 text-[10px] font-medium uppercase tracking-wider text-slate-400">Trạng thái</div>
           <div className="flex flex-col gap-1.5">
             <LegendItem color="#22c55e" label="Vận hành tốt" />

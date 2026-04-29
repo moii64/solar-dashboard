@@ -317,9 +317,9 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen animate-fade-in">
       {/* Header - Design C Style */}
-      <header className="px-6 py-5 border-b border-dark-border bg-dark-bg/80 backdrop-blur-xl sticky top-0 z-50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      <header className="px-4 sm:px-6 py-4 sm:py-5 border-b border-dark-border bg-dark-bg/80 backdrop-blur-xl sticky top-0 z-50">
+        <div className="flex flex-col gap-3 sm:gap-0 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             <div className="flex items-center gap-3 group">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-emerald-500/20">
                 <IconSun size={24} className="text-white" />
@@ -330,9 +330,9 @@ export default function DashboardPage() {
               </div>
             </div>
             
-            <div className="h-8 w-px bg-dark-border mx-2"></div>
+            <div className="hidden sm:block h-8 w-px bg-dark-border mx-2"></div>
             
-            <nav className="flex items-center gap-2">
+            <nav className="flex items-center gap-2 overflow-x-auto scrollbar-thin">
               <NavPill 
                 icon={<IconActivity size={16} />} 
                 label="Tổng quan" 
@@ -348,7 +348,7 @@ export default function DashboardPage() {
             </nav>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
             <div className="dc-live-badge animate-pulse">
               <span className="dot"></span>
               <span className="text-xs font-medium text-emerald-400">Live</span>
@@ -366,7 +366,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-4 sm:p-6">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="flex flex-col items-center gap-4 animate-fade-in">
@@ -422,8 +422,8 @@ export default function DashboardPage() {
             {/* Map + Sites Row - Improved grid */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
               {/* Map */}
-              <div className="xl:col-span-2 dc-card p-6 animate-slide-up" style={{ animationDelay: '200ms' }}>
-                <div className="flex items-center justify-between mb-5">
+              <div className="xl:col-span-2 dc-card p-4 sm:p-6 animate-slide-up" style={{ animationDelay: '200ms' }}>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
                   <div className="flex items-center gap-3">
                     <h3 className="font-semibold text-white text-lg">Vị trí Sites</h3>
                     <span className="px-2 py-1 rounded-lg bg-slate-800/50 text-xs text-slate-400">{sites.length} địa điểm</span>
