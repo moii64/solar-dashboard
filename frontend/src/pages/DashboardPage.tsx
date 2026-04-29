@@ -313,6 +313,12 @@ export default function DashboardPage() {
   const warningCount = siteRows.filter(r => r.health === 'warning').length
   const totalPower = (statsOverview?.total_power || 0) / 1000
   const hasHistoryData = historyPoints.length > 0
+  const [chartFadeTick, setChartFadeTick] = useState(0)
+
+  useEffect(() => {
+    if (!hasHistoryData) return
+    setChartFadeTick((prev) => prev + 1)
+  }, [historyPoints.length, hasHistoryData])
 
   return (
     <div className="min-h-screen animate-fade-in">
@@ -502,11 +508,13 @@ export default function DashboardPage() {
                   </select>
                 </div>
               </div>
-              <div className="dc-chart-area rounded-xl" style={{ height: hasHistoryData ? (window.innerWidth < 768 ? '220px' : '280px') : '160px' }}>
+              <div className="dc-chart-area rounded-xl" style={{ height: hasHistoryData ? '280px' : '160px' }}>
                 {hasHistoryData ? (
-                  <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-500"><div className="animate-pulse">Đang tải biểu đồ...</div></div>}>
-                    <Chart data={historyPoints} />
-                  </Suspense>
+                  <div key={chartFadeTick} className="h-full animate-fade-in">
+                    <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-500"><div className="animate-pulse">Đang tải biểu đồ...</div></div>}>
+                      <Chart data={historyPoints} />
+                    </Suspense>
+                  </div>
                 ) : (
                   <EmptyState compact message="Chưa có dữ liệu lịch sử. Hệ thống sẽ tự hiển thị biểu đồ khi có thêm telemetry." />
                 )}
