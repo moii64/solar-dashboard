@@ -147,10 +147,10 @@ Cập nhật gần nhất: 2026-04-28 06:57 (GMT+7)
 
 ## 📅 Next Actions (lên lịch 2026-04-29)
 ### 1. Kiểm tra responsive trên mobile (Priority: High)
-- [ ] Test layout trên viewport 375px, 390px, 768px
-- [ ] Verify touch interactions (tap site, scroll map, toggle layers)
-- [ ] Check text readability và button size trên mobile
-- [ ] Screenshot mobile để so sánh với desktop
+- [x] Test layout trên viewport 375px, 390px, 768px
+- [x] Verify touch interactions (tap site, scroll map, toggle layers)
+- [x] Check text readability và button size trên mobile
+- [x] Screenshot mobile để so sánh với desktop
 - **Deadline:** 2026-04-30
 - **Owner:** Frontend team
 

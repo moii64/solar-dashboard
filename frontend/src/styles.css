@@ -66,6 +66,30 @@ body {
   .dc-card {
     @apply bg-dark-surface rounded-2xl border border-dark-border overflow-hidden relative transition-all duration-300;
   }
+
+  .dc-card-interactive {
+    @apply dc-card;
+    transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease, background-color 220ms ease;
+  }
+
+  .dc-card-interactive:hover {
+    transform: translateY(-2px);
+    border-color: rgba(52, 211, 153, 0.28);
+    box-shadow: 0 18px 45px rgba(2, 6, 23, 0.28), 0 0 22px rgba(16, 185, 129, 0.08);
+  }
+
+  .dc-skeleton {
+    @apply relative overflow-hidden bg-white/[0.05];
+  }
+
+  .dc-skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+    animation: skeleton-shimmer 1.6s infinite;
+  }
   
   .dc-card-glow {
     @apply dc-card;
@@ -231,6 +255,10 @@ body {
 @keyframes pulse-glow {
   0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4); }
   50% { opacity: 0.8; box-shadow: 0 0 0 6px rgba(52, 211, 153, 0); }
+}
+
+@keyframes skeleton-shimmer {
+  100% { transform: translateX(100%); }
 }
 
 @layer utilities {

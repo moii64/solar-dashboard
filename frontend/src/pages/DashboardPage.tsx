@@ -83,7 +83,7 @@ function StatCard({
 }) {
   return (
     <div 
-      className="dc-stat-card group animate-slide-up"
+      className="dc-stat-card dc-card-interactive group animate-slide-up"
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className="flex items-start justify-between mb-4">
@@ -370,7 +370,7 @@ export default function DashboardPage() {
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="flex flex-col items-center gap-4 animate-fade-in">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-cyan-500 animate-spin flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-cyan-500 animate-spin flex items-center justify-center shadow-glow-emerald">
                 <IconSun size={24} className="text-white" />
               </div>
               <div className="text-slate-400">Đang tải dữ liệu...</div>
@@ -422,7 +422,7 @@ export default function DashboardPage() {
             {/* Map + Sites Row - Improved grid */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
               {/* Map */}
-              <div className="xl:col-span-2 dc-card p-4 sm:p-6 animate-slide-up" style={{ animationDelay: '200ms' }}>
+              <div className="xl:col-span-2 dc-card-interactive p-4 sm:p-6 animate-slide-up" style={{ animationDelay: '200ms' }}>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
                   <div className="flex items-center gap-3">
                     <h3 className="font-semibold text-white text-lg">Vị trí Sites</h3>
@@ -451,7 +451,7 @@ export default function DashboardPage() {
               </div>
               
               {/* Site List - Improved */}
-              <div className="dc-card animate-slide-up" style={{ animationDelay: '300ms' }}>
+              <div className="dc-card-interactive animate-slide-up" style={{ animationDelay: '300ms' }}>
                 <div className="p-5 border-b border-dark-border">
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-white">Sites hoạt động</h3>
@@ -483,7 +483,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Chart Section - Improved */}
-            <div className="dc-card p-6 animate-slide-up" style={{ animationDelay: '400ms' }}>
+            <div className="dc-card-interactive p-6 animate-slide-up" style={{ animationDelay: '400ms' }}>
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
@@ -513,7 +513,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="dc-card p-3 sm:p-4 sm:p-5 bg-slate-900/30">
+            <div className="dc-card-interactive p-3 sm:p-4 sm:p-5 bg-slate-900/30">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
                 <p className="text-xs sm:text-sm text-slate-300">Layout đã tối ưu cho trạng thái ít dữ liệu để màn hình gọn và cân đối hơn.</p>
                 <span className="text-[10px] sm:text-xs text-slate-500 whitespace-nowrap">UI Polish Pass · Empty-state balancing</span>
