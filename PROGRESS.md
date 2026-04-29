@@ -131,22 +131,60 @@ Cập nhật gần nhất: 2026-04-28 06:57 (GMT+7)
   - Build thành công trong 59s (Vite + TypeScript)
   - Vercel tự động tạo Python venv cho backend service
 
-## ✅ Việc tiếp theo
-1. Kiểm tra frontend production hoạt động:
-   - Verify API connection với backend Render
-   - Test WebSocket realtime updates
-   - Kiểm tra responsive trên mobile
-2. Tiếp tục nâng cấp UI:
-   - Thêm micro-animations & transitions tinh tế
-   - Tối ưu typography & spacing
-   - Nâng cấp data visualization (Recharts, Map)
-3. Backend production thực thụ:
-   - Cấu hình SSL + reverse proxy
-   - Map domain `solarvn.com`, `app.solarvn.com`, `api.solarvn.com`
-4. Tích hợp dữ liệu thật:
-   - Kết nối MQTT broker/gateway thực tế
-   - Import historical data từ weather stations
-   - Dự báo sản lượng (ML/yield prediction)
+## ✅ Cập nhật mới (2026-04-29 13:14)
+- Đã hoàn thành UI polish pass theo backlog:
+  - EmptyState component thêm prop `compact` để tự động thu nhỏ khi ít dữ liệu
+  - Panel "Sites hoạt động" thêm gợi ý phía dưới khi chỉ có 1 site
+  - Chart empty state chiều cao động (280px có data / 200px rỗng) + hướng dẫn
+  - Thêm footer-card nhỏ giải thích UI polish pass
+- Đã fix layout center issue:
+  - Thêm `postcss.config.js` để Tailwind utilities compile đúng vào production CSS
+  - Sửa JSX structure trong `DashboardPage.tsx` để `max-w-7xl mx-auto` hoạt động
+  - Verify production: layout đã center đúng, grid hiển thị chuẩn
+- Commit: `27db9f1` → push thành công lên `master`
+- Production URL: https://solar-dashboard-rouge.vercel.app
+- Dashboard giờ đã **modern, dễ dùng, không còn lệch/khoảng trống chết** khi data ít
+
+## 📅 Next Actions (lên lịch 2026-04-29)
+### 1. Kiểm tra responsive trên mobile (Priority: High)
+- [ ] Test layout trên viewport 375px, 390px, 768px
+- [ ] Verify touch interactions (tap site, scroll map, toggle layers)
+- [ ] Check text readability và button size trên mobile
+- [ ] Screenshot mobile để so sánh với desktop
+- **Deadline:** 2026-04-30
+- **Owner:** Frontend team
+
+### 2. Thêm micro-animations & transitions (Priority: Medium)
+- [ ] Card hover effects tinh tế hơn (scale + shadow)
+- [ ] Smooth transitions cho chart data updates
+- [ ] Loading skeleton cho map/chart khi fetch data
+- [ ] Status badge pulse animation cho live indicator
+- **Deadline:** 2026-05-02
+- **Owner:** Frontend team
+
+### 3. Backend production SSL + domain mapping (Priority: High)
+- [ ] Cấu hình SSL certificate cho backend Render
+- [ ] Map domain `api.solarvn.com` → backend Render
+- [ ] Map domain `app.solarvn.com` → frontend Vercel
+- [ ] Update CORS settings cho custom domain
+- [ ] Test end-to-end với production domain
+- **Deadline:** 2026-05-03
+- **Owner:** DevOps team
+
+### 4. Tích hợp MQTT broker thực tế (Priority: High)
+- [ ] Deploy MQTT broker (Mosquitto) lên VPS/cloud
+- [ ] Cấu hình authentication + TLS cho MQTT
+- [ ] Test ingest telemetry từ gateway/device thật
+- [ ] Verify WebSocket broadcast dữ liệu realtime đến frontend
+- [ ] Monitor MQTT consumer logs và error handling
+- **Deadline:** 2026-05-05
+- **Owner:** Backend team
+
+## 📝 UI Polish Backlog (đã note theo yêu cầu 2026-04-29)
+- Dư khoảng trống lớn phía dưới khi data ít → nén vertical spacing, thêm bottom balancing section.
+- Panel **“Sites hoạt động”** hơi trống khi chỉ có 1 site → thêm compact empty-enhancement (quick stats / hints / mini cards).
+- Chart empty state hơi rộng so với nội dung → thêm smart empty state (giảm chiều cao động + skeleton/guide) để layout nhìn đầy hơn.
+- Gói polish đề xuất cho pass sau: **nén spacing + empty-state thông minh + cân layout cuối trang** để giao diện premium hơn.
 
 ## 🧭 Cách dùng file này
 - Mỗi lần tiếp tục, chỉ cần quét `solar-dashboard/PROGRESS.md` trước.
