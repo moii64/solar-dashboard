@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solar Dashboard - Design Direction B: Data-Rich Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    
+    /* Design B: Data-Rich Hybrid */
+    .design-b {
+      --primary: #6366F1;
+      --primary-light: #EEF2FF;
+      --bg: #F8FAFC;
+      --surface: #FFFFFF;
+      --text: #0F172A;
+      --text-secondary: #64748B;
+      --border: #E2E8F0;
+    }
+    
+    .design-b .glass-panel {
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+    }
+    
+    .design-b .kpi-card {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .design-b .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary), #818CF8);
+    }
+    
+    .design-b .kpi-value {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+    
+    .design-b .kpi-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 8px;
+    }
+    
+    .design-b .kpi-change {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 8px;
+      border-radius: 6px;
+      margin-top: 8px;
+    }
+    
+    .design-b .kpi-change.up {
+      background: #DCFCE7;
+      color: #16A34A;
+    }
+    
+    .design-b .kpi-change.down {
+      background: #FEE2E2;
+      color: #DC2626;
+    }
+    
+    .design-b .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    
+    .design-b .data-table thead {
+      background: var(--bg);
+    }
+    
+    .design-b .data-table th {
+      text-align: left;
+      padding: 12px 16px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border-bottom: 2px solid var(--border);
+    }
+    
+    .design-b .data-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    
+    .design-b .data-table tbody tr {
+      transition: background 0.15s;
+    }
+    
+    .design-b .data-table tbody tr:hover {
+      background: var(--primary-light);
+    }
+    
+    .design-b .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    
+    .design-b .status-dot.online { background: #22C55E; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2); }
+    .design-b .status-dot.warning { background: #F59E0B; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2); }
+    .design-b .status-dot.offline { background: #EF4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2); }
+    
+    .design-b .map-wrapper {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    
+    .design-b .chart-placeholder {
+      background: linear-gradient(135deg, var(--bg) 0%, #F1F5F9 100%);
+      border-radius: 12px;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 1px dashed var(--border);
+    }
+    
+    .design-b .sidebar {
+      width: 280px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      height: 100vh;
+      position: fixed;
+      left: 0;
+      top: 0;
+      overflow-y: auto;
+    }
+    
+    .design-b .main-content {
+      margin-left: 280px;
+      min-height: 100vh;
+      background: var(--bg);
+    }
+    
+    .design-b .top-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .design-b .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.15s;
+      cursor: pointer;
+    }
+    
+    .design-b .nav-item:hover {
+      background: var(--bg);
+      color: var(--text);
+    }
+    
+    .design-b .nav-item.active {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+    
+    .design-b .nav-item svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    @media (max-width: 1024px) {
+      .design-b .sidebar { transform: translateX(-100%); }
+      .design-b .main-content { margin-left: 0; }
+    }
+  </style>
+</head>
+<body class="design-b">
+  <!-- ASSUMPTIONS & REASONING -->
+  <!-- 
+  Design Direction B: Data-Rich Hybrid Dashboard
+  ===============================================
+  Concept: Giao diện dashboard chuyên nghiệp, kết hợp:
+  - Sidebar navigation cố định (desktop)
+  - Grid layout với KPI cards ở trên
+  - Map chiếm nửa màn hình (phải)
+  - Bảng dữ liệu chi tiết ở dưới
+  - Chart nhỏ gọn trong các KPI cards
+  
+  Style: Professional, information-dense nhưng vẫn modern,
+  rounded corners nhẹ (12px), subtle shadows
+  
+  Placeholder data: 6 sites với đầy đủ metrics
+  -->
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="p-5 border-b border-slate-200">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="font-semibold text-slate-900">SolarVN</h1>
+          <p class="text-xs text-slate-500">Control Center</p>
+        </div>
+      </div>
+    </div>
+    
+    <nav class="p-3">
+      <div class="mb-2">
+        <p class="px-4 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Quản lý</p>
+      </div>
+      <div class="nav-item active">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
+        </svg>
+        <span>Tổng quan</span>
+      </div>
+      <div class="nav-item">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+        </svg>
+        <span>Địa điểm</span>
+      </div>
+      <div class="nav-item">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+        </svg>
+        <span>Biểu đồ</span>
+      </div>
+      
+      <div class="my-4 border-t border-slate-200"></div>
+      
+      <div class="mb-2">
+        <p class="px-4 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Hệ thống</p>
+      </div>
+      <div class="nav-item">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        <span>Cài đặt</span>
+      </div>
+      <div class="nav-item">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span>Trợ giúp</span>
+      </div>
+    </nav>
+    
+    <!-- Sidebar Footer -->
+    <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-200 bg-white">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-white font-semibold text-sm">
+          M
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-medium text-slate-900 text-sm truncate">Admin</p>
+          <p class="text-xs text-slate-500">admin@solarvn.com</p>
+        </div>
+        <div class="flex items-center gap-1 px-2 py-1 bg-emerald-50 rounded-full">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          <span class="text-[10px] font-medium text-emerald-700">Live</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <div class="flex items-center gap-4">
+        <h2 class="text-lg font-semibold text-slate-900">Tổng quan Dashboard</h2>
+        <span class="text-sm text-slate-500">Cập nhật: 2 phút trước</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <button class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+          </svg>
+          Bộ lọc
+        </button>
+        <button class="flex items-center gap-2 px-4 py-2 bg-indigo-500 text-white rounded-lg text-sm font-medium hover:bg-indigo-600 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          Thêm Site
+        </button>
+      </div>
+    </header>
+
+    <div class="p-6">
+      <!-- KPI Grid -->
+      <div class="grid grid-cols-4 gap-5 mb-6">
+        <div class="kpi-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-slate-400">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+              </svg>
+            </span>
+            <span class="kpi-change up">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+              </svg>
+              +2
+            </span>
+          </div>
+          <div class="kpi-value text-slate-900">12</div>
+          <div class="kpi-label">Tổng Sites</div>
+        </div>
+        
+        <div class="kpi-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-emerald-500">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </span>
+          </div>
+          <div class="kpi-value text-emerald-600">10</div>
+          <div class="kpi-label">Đang hoạt động</div>
+        </div>
+        
+        <div class="kpi-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-amber-500">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+            </span>
+            <span class="kpi-change up">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+              </svg>
+              +8%
+            </span>
+          </div>
+          <div class="kpi-value text-slate-900">2.4 <span class="text-lg text-slate-400">MW</span></div>
+          <div class="kpi-label">Tổng công suất</div>
+        </div>
+        
+        <div class="kpi-card">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-indigo-500">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+              </svg>
+            </span>
+            <span class="kpi-change up">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+              </svg>
+              +12%
+            </span>
+          </div>
+          <div class="kpi-value text-slate-900">18.5 <span class="text-lg text-slate-400">MWh</span></div>
+          <div class="kpi-label">Sản lượng hôm nay</div>
+        </div>
+      </div>
+
+      <!-- Map + Chart Row -->
+      <div class="grid grid-cols-2 gap-5 mb-6">
+        <div class="map-wrapper">
+          <div id="map-b" style="height: 320px;"></div>
+        </div>
+        <div class="chart-placeholder">
+          <svg class="w-12 h-12 text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+          </svg>
+          <p class="text-sm text-slate-500">Power Chart</p>
+          <p class="text-xs text-slate-400 mt-1">Real-time power output visualization</p>
+        </div>
+      </div>
+
+      <!-- Data Table -->
+      <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+          <h3 class="font-semibold text-slate-900">Danh sách Inverter</h3>
+          <div class="flex items-center gap-2">
+            <div class="relative">
+              <input type="text" placeholder="Tìm kiếm..." class="pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300">
+              <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Site</th>
+              <th>Model</th>
+              <th>Trạng thái</th>
+              <th>Công suất</th>
+              <th>Sản lượng HT</th>
+              <th>Nhiệt độ</th>
+              <th>Hiệu suất</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold">SH</div>
+                  <div>
+                    <p class="font-medium text-slate-900">Sunhouse Đông Anh</p>
+                    <p class="text-xs text-slate-500">Hà Nội</p>
+                  </div>
+                </div>
+              </td>
+              <td><span class="mono text-sm text-slate-600">SG110CX</span></td>
+              <td><span class="flex items-center gap-2"><span class="status-dot online"></span> Online</span></td>
+              <td><span class="font-semibold text-slate-900">245 kW</span></td>
+              <td class="text-slate-600">1,890 kWh</td>
+              <td class="text-slate-600">42°C</td>
+              <td><span class="text-emerald-600 font-medium">98.2%</span></td>
+              <td><button class="text-indigo-500 hover:text-indigo-700 text-sm font-medium">Chi tiết</button></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold">VS</div>
+                  <div>
+                    <p class="font-medium text-slate-900">Vinasol Quảng Ngãi</p>
+                    <p class="text-xs text-slate-500">Quảng Ngãi</p>
+                  </div>
+                </div>
+              </td>
+              <td><span class="mono text-sm text-slate-600">SUN2000-50KTL</span></td>
+              <td><span class="flex items-center gap-2"><span class="status-dot online"></span> Online</span></td>
+              <td><span class="font-semibold text-slate-900">198 kW</span></td>
+              <td class="text-slate-600">1,456 kWh</td>
+              <td class="text-slate-600">45°C</td>
+              <td><span class="text-emerald-600 font-medium">96.8%</span></td>
+              <td><button class="text-indigo-500 hover:text-indigo-700 text-sm font-medium">Chi tiết</button></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-xs font-bold">SP</div>
+                  <div>
+                    <p class="font-medium text-slate-900">SolarPro Bình Dương</p>
+                    <p class="text-xs text-slate-500">Bình Dương</p>
+                  </div>
+                </div>
+              </td>
+              <td><span class="mono text-sm text-slate-600">SG50CX</span></td>
+              <td><span class="flex items-center gap-2"><span class="status-dot warning"></span> Cảnh báo</span></td>
+              <td><span class="font-semibold text-amber-600">45 kW</span></td>
+              <td class="text-slate-600">324 kWh</td>
+              <td><span class="text-amber-600">58°C</span></td>
+              <td><span class="text-amber-600 font-medium">72.1%</span></td>
+              <td><button class="text-indigo-500 hover:text-indigo-700 text-sm font-medium">Chi tiết</button></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white text-xs font-bold">ES</div>
+                  <div>
+                    <p class="font-medium text-slate-900">EcoSun Hồ Chí Minh</p>
+                    <p class="text-xs text-slate-500">TP.HCM</p>
+                  </div>
+                </div>
+              </td>
+              <td><span class="mono text-sm text-slate-600">GW50KN-MT</span></td>
+              <td><span class="flex items-center gap-2"><span class="status-dot online"></span> Online</span></td>
+              <td><span class="font-semibold text-slate-900">180 kW</span></td>
+              <td class="text-slate-600">1,234 kWh</td>
+              <td class="text-slate-600">48°C</td>
+              <td><span class="text-emerald-600 font-medium">97.5%</span></td>
+              <td><button class="text-indigo-500 hover:text-indigo-700 text-sm font-medium">Chi tiết</button></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center text-white text-xs font-bold">GP</div>
+                  <div>
+                    <p class="font-medium text-slate-900">GreenPwr Đà Nẵng</p>
+                    <p class="text-xs text-slate-500">Đà Nẵng</p>
+                  </div>
+                </div>
+              </td>
+              <td><span class="mono text-sm text-slate-600">SE33.3K</span></td>
+              <td><span class="flex items-center gap-2"><span class="status-dot online"></span> Online</span></td>
+              <td><span class="font-semibold text-slate-900">156 kW</span></td>
+              <td class="text-slate-600">1,089 kWh</td>
+              <td class="text-slate-600">44°C</td>
+              <td><span class="text-emerald-600 font-medium">99.1%</span></td>
+              <td><button class="text-indigo-500 hover:text-indigo-700 text-sm font-medium">Chi tiết</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="px-5 py-3 border-t border-slate-200 flex items-center justify-between text-sm text-slate-500">
+          <span>Hiển thị 1-5 của 12 sites</span>
+          <div class="flex items-center gap-1">
+            <button class="px-3 py-1 rounded border border-slate-200 hover:bg-slate-50 disabled:opacity-50" disabled>Prev</button>
+            <button class="px-3 py-1 rounded bg-indigo-50 text-indigo-600 font-medium">1</button>
+            <button class="px-3 py-1 rounded border border-slate-200 hover:bg-slate-50">2</button>
+            <button class="px-3 py-1 rounded border border-slate-200 hover:bg-slate-50">3</button>
+            <button class="px-3 py-1 rounded border border-slate-200 hover:bg-slate-50">Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Initialize map for Design B
+    const mapB = L.map('map-b', {
+      zoomControl: true,
+      attributionControl: false
+    }).setView([16.0544, 108.2022], 6);
+    
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19
+    }).addTo(mapB);
+
+    // Custom markers
+    const markers = [
+      { name: 'Sunhouse Đông Anh', lat: 21.1333, lng: 105.8333, status: 'online', power: '245 kW' },
+      { name: 'Vinasol Quảng Ngãi', lat: 15.1200, lng: 108.8000, status: 'online', power: '198 kW' },
+      { name: 'SolarPro Bình Dương', lat: 11.1500, lng: 106.6500, status: 'warning', power: '45 kW' },
+      { name: 'EcoSun HCM', lat: 10.8231, lng: 106.6297, status: 'online', power: '180 kW' },
+      { name: 'GreenPwr Đà Nẵng', lat: 16.0544, lng: 108.2022, status: 'online', power: '156 kW' },
+    ];
+
+    markers.forEach(site => {
+      const color = site.status === 'online' ? '#22C55E' : '#F59E0B';
+      const icon = L.divIcon({
+        className: 'custom-marker',
+        html: `<div style="width:24px;height:24px;background:${color};border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;">
+          <div style="width:8px;height:8px;background:white;border-radius:50%;"></div>
+        </div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+      L.marker([site.lat, site.lng], { icon })
+        .addTo(mapB)
+        .bindPopup(`<strong>${site.name}</strong><br>Công suất: ${site.power}`);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,205 @@
+.dc-card {
+  background-color: var(--dc-surface);
+  border-radius: 16px;
+  border: 1px solid var(--dc-border);
+  overflow: hidden;
+}
+
+.dc-card-glow {
+  position: relative;
+}
+
+.dc-card-glow::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 17px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), transparent 50%);
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.dc-card-glow:hover::before {
+  opacity: 1;
+}
+
+.dc-card-glow:hover {
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.dc-stat-card {
+  padding: 1.5rem;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s;
+}
+
+.dc-stat-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.dc-stat-icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--dc-accent);
+}
+
+.site-list-item {
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 1px solid var(--dc-border);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.site-list-item:hover {
+  background-color: rgba(255,255,255,0.02);
+}
+
+.site-list-item:last-child {
+  border-bottom: none;
+}
+
+.dc-site-avatar {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.dc-power-bar {
+  height: 0.375rem;
+  background-color: rgba(255,255,255,0.1);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.dc-power-bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--dc-primary), var(--dc-accent));
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dc-nav-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.875rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background-color: rgba(255,255,255,0.05);
+  color: var(--dc-text-secondary);
+  border: 1px solid transparent;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.dc-nav-pill:hover {
+  background-color: rgba(255,255,255,0.08);
+}
+
+.dc-nav-pill.active {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: var(--dc-accent);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.dc-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 0.375rem;
+  background-color: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.dc-live-badge .dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background-color: var(--dc-accent);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.dc-glow-text {
+  text-shadow: 0 0 1rem rgba(52, 211, 153, 0.5);
+}
+
+.dc-chart-area {
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.05) 0%, transparent 100%);
+  border-radius: 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.dc-chart-area::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60%;
+  background: linear-gradient(180deg, transparent, rgba(16, 185, 129, 0.03));
+  pointer-events: none;
+}
+
+.dc-status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  display: inline-block;
+}
+
+.dc-status-dot.online {
+  background-color: #22C55E;
+  box-shadow: 0 0 0 0.75rem rgba(34, 197, 94, 0.2);
+}
+
+.dc-status-dot.warning {
+  background-color: #F59E0B;
+  box-shadow: 0 0 0 0.75rem rgba(245, 158, 11, 0.2);
+}
+
+.dc-status-dot.offline {
+  background-color: #EF4444;
+  box-shadow: 0 0 0 0.75rem rgba(239, 68, 68, 0.2);
+}
+
+.dc-input {
+  background-color: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--dc-text);
+  placeholder-color: var(--dc-text-secondary);
+  transition: all 0.2s;
+}
+
+.dc-input:focus {
+  outline: none;
+  ring-width: 2px;
+  ring-color: var(--dc-accent) / 0.3;
+  border-color: var(--dc-accent) / 0.5;
+}
+
+/* Animations */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4); }
+  50% { opacity: 0.8; box-shadow: 0 0 0 1.5rem rgba(52, 211, 153, 0); }
+}

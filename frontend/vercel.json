@@ -1,0 +1,9 @@
+{
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "framework": "vite",
+  "env": {
+    "VITE_API_BASE": "https://solar-dashboard-xs4b.onrender.com",
+    "VITE_WS_URL": "wss://solar-dashboard-xs4b.onrender.com/ws/inverters"
+  }
+}

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'rea
 import axios from 'axios'
 import SiteDetailPanel from '../components/SiteDetailPanel'
 import InverterModelForm from '../components/InverterModelForm'
-import { IconBolt, IconBattery, IconSun, IconThermometer, IconActivity, IconFilter, IconTrash, IconRefresh, IconPlus, IconArrowRight, IconCheckCircle, IconAlertTriangle, IconXCircle } from '../components/Icons'
+import { IconBolt, IconBattery, IconSun, IconThermometer, IconActivity, IconFilter, IconTrash, IconRefresh, IconPlus, IconArrowRight, IconCheckCircle, IconAlertTriangle, IconXCircle, IconChart, IconMap } from '../components/Icons'
 
 const Chart = lazy(() => import('./ChartComponent'))
 const MapComponent = lazy(() => import('./MapComponent'))
@@ -49,44 +49,6 @@ type StatsHistoryPoint = {
   is_online?: boolean | null
 }
 
-type WeatherObservation = {
-  id: number
-  source_name: string
-  station_id?: string | null
-  station_name?: string | null
-  observed_at: string
-  latitude?: number | null
-  longitude?: number | null
-  solar_radiation?: number | null
-  temperature?: number | null
-  wind_speed?: number | null
-  pressure?: number | null
-  raw_payload?: string | null
-}
-
-type SourceSyncLog = {
-  id: number
-  source_name: string
-  sync_type: string
-  status: string
-  started_at: string
-  finished_at?: string | null
-  records_processed: number
-  message?: string | null
-}
-
-type SourceConnector = {
-  source_name: string
-  auth_requirements: Record<string, string>
-  implementation_status: string
-}
-
-type TelemetryMessage = {
-  type: 'telemetry'
-  reading: SiteTelemetry
-  stats_overview?: StatsOverview
-}
-
 type FormData = {
   name: string
   location: string
@@ -99,232 +61,198 @@ type FormData = {
 type RealtimeState = 'connecting' | 'live' | 'offline'
 type SiteHealth = 'healthy' | 'warning' | 'critical'
 
-type SiteRow = {
-  site: Site
-  latest: SiteTelemetry | null
-  region: string
-  cluster: string
-  health: SiteHealth
-  currentPower: number
-  energyToday: number
-  temperature: number | null
+const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) || '/api'
+
+// Design C: Card component with glow effect
+function StatCard({ 
+  icon, 
+  title, 
+  value, 
+  subtitle, 
+  change, 
+  changeType = 'up',
+  delay = 0
+}: { 
+  icon: React.ReactNode
+  title: string
+  value: string
+  subtitle: string
+  change?: string
+  changeType?: 'up' | 'down'
+  delay?: number
+}) {
+  return (
+    <div 
+      className="dc-stat-card group animate-slide-up"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div className="dc-stat-icon group-hover:scale-110 transition-transform duration-300">{icon}</div>
+        {change && (
+          <span className={`text-xs font-medium px-2 py-1 rounded transition-all duration-300 ${changeType === 'up' ? 'bg-emerald-500/15 text-emerald-400 group-hover:bg-emerald-500/25' : 'bg-rose-500/15 text-rose-400 group-hover:bg-rose-500/25'}`}>
+            {changeType === 'up' ? '↑' : '↓'} {change}
+          </span>
+        )}
+      </div>
+      <div className="text-4xl font-bold text-white dc-glow-text mb-1">{value}</div>
+      <div className="text-sm text-slate-500">{title}</div>
+      {subtitle && <div className="flex items-center gap-2 mt-3 text-xs text-slate-500">{subtitle}</div>}
+    </div>
+  )
 }
 
-const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) || '/api'
-const WS_URL = (import.meta.env.VITE_WS_URL as string | undefined)
-  || `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws/inverters`
-
-function OverviewMetric({
-  label,
-  value,
-  hint,
-  accent = 'emerald',
+// Design C: Site list item with enhanced animations
+function SiteListItem({ 
+  site, 
+  latest, 
+  health, 
   onClick,
-  active = false,
-}: {
-  label: string
-  value: string
-  hint: string
-  accent?: 'emerald' | 'cyan' | 'amber' | 'violet'
-  onClick?: () => void
-  active?: boolean
+  index = 0
+}: { 
+  site: Site
+  latest: SiteTelemetry | null
+  health: SiteHealth
+  onClick: () => void
+  index?: number
 }) {
-  const accentClass = {
-    emerald: 'border-emerald-200 bg-emerald-50/60 text-emerald-700',
-    cyan: 'border-cyan-200 bg-cyan-50/60 text-cyan-700',
-    amber: 'border-amber-200 bg-amber-50/70 text-amber-700',
-    violet: 'border-violet-200 bg-violet-50/70 text-violet-700',
-  }[accent]
-
-  const IconComponent = {
-    emerald: IconBolt,
-    cyan: IconBattery,
-    amber: IconSun,
-    violet: IconActivity,
-  }[accent]
-
+  const healthColors = {
+    healthy: 'from-emerald-400 to-cyan-500',
+    warning: 'from-amber-400 to-orange-500',
+    critical: 'from-rose-400 to-red-500',
+  }
+  
+  const healthDot = {
+    healthy: 'bg-emerald-400',
+    warning: 'bg-amber-400',
+    critical: 'bg-rose-400',
+  }
+  
+  const healthText = {
+    healthy: 'text-emerald-400',
+    warning: 'text-amber-400',
+    critical: 'text-rose-400',
+  }
+  
+  const powerPercent = latest?.power ? Math.min((latest.power / 300) * 100, 100) : 0
+  const efficiency = latest?.power && latest?.power > 0 ? Math.min((latest.power / 250) * 100, 100) : 0
+  
   return (
-    <button
-      type="button"
+    <div 
+      className="site-list-item group animate-fade-in cursor-pointer"
       onClick={onClick}
-      className={`group relative w-full overflow-hidden rounded-2xl border ${accentClass} p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${onClick ? 'cursor-pointer' : 'cursor-default'} ${active ? 'ring-2 ring-cyan-300/40' : ''}`}
+      style={{ animationDelay: `${index * 100}ms` }}
     >
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-white to-transparent opacity-70" />
-      <div className="flex items-start justify-between gap-3">
-        <div className="text-xs uppercase tracking-[0.16em] text-stone-500">{label}</div>
-        <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-white bg-white/90 shadow-sm">
-          <IconComponent size={16} className="text-stone-700" />
+      <div className={`dc-site-avatar bg-gradient-to-br ${healthColors[health]} transition-all duration-300 group-hover:scale-105 group-hover:shadow-lg`}>
+        {site.name.substring(0, 2).toUpperCase()}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-white text-sm truncate group-hover:text-emerald-300 transition-colors duration-200">{site.name}</span>
+          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${healthDot[health]} animate-pulse`}></span>
+        </div>
+        <div className="flex items-center justify-between mt-2">
+          <span className={`text-xs font-medium ${healthText[health]} transition-all duration-200 group-hover:scale-105 transform origin-left`}>{latest?.power ? `${latest.power} kW` : '--'}</span>
+          <span className="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">{efficiency.toFixed(1)}%</span>
+        </div>
+        <div className="dc-power-bar mt-1 overflow-hidden">
+          <div 
+            className="dc-power-bar-fill transition-all duration-500 ease-out group-hover:shadow-[0_0_10px_rgba(52,211,153,0.3)]" 
+            style={{ width: `${powerPercent}%` }}
+          ></div>
         </div>
       </div>
-      <div className="mt-4 text-2xl font-semibold tracking-tight text-stone-900 md:text-[2rem]">{value}</div>
-      <div className="mt-2 text-sm text-stone-600">{hint}</div>
+    </div>
+  )
+}
+
+// Navigation Pill Component
+function NavPill({ 
+  icon, 
+  label, 
+  active, 
+  onClick 
+}: { 
+  icon: React.ReactNode
+  label: string
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button 
+      className={`dc-nav-pill group transition-all duration-300 ${active ? 'active' : ''}`}
+      onClick={onClick}
+    >
+      <span className="transition-transform duration-200 group-hover:scale-110">{icon}</span>
+      <span>{label}</span>
     </button>
   )
 }
 
-function SectionCard({
-  title,
-  eyebrow,
-  description,
-  children,
-  tone = 'default',
-}: {
-  title: string
-  eyebrow: string
-  description?: string
-  children: React.ReactNode
-  tone?: 'default' | 'ops' | 'alert' | 'data'
-}) {
-  const toneClass = {
-    default: '',
-    ops: 'section-shell--ops',
-    alert: 'section-shell--alert',
-    data: 'section-shell--data',
-  }[tone]
-
+// Empty State Component
+function EmptyState({ message }: { message: string }) {
   return (
-    <section className={`section-shell ${toneClass}`}>
-      <div className="section-title-row">
-        <div>
-          <div className="text-xs uppercase tracking-[0.18em] text-stone-500">{eyebrow}</div>
-          <h3 className="mt-1 text-xl font-semibold text-stone-900">{title}</h3>
-          {description ? <p className="mt-1 text-sm text-stone-600">{description}</p> : null}
-        </div>
+    <div className="flex flex-col items-center justify-center h-full py-12 animate-fade-in">
+      <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mb-4">
+        <IconSun size={32} className="text-slate-600" />
       </div>
-      {children}
-    </section>
+      <p className="text-slate-500 text-sm">{message}</p>
+    </div>
   )
-}
-
-function formatMetric(value?: number | null, digits = 0) {
-  if (value === undefined || value === null || Number.isNaN(value)) return '--'
-  return new Intl.NumberFormat('vi-VN', {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  }).format(value)
-}
-
-function formatSyncTime(value?: string | null) {
-  if (!value) return '--:--:--'
-  return new Date(value).toLocaleTimeString('vi-VN')
-}
-
-function formatDateTime(value?: string | null) {
-  if (!value) return '--'
-  return new Date(value).toLocaleString('vi-VN')
-}
-
-function deriveRegion(site: Site) {
-  if (site.latitude !== undefined && site.latitude !== null) {
-    if (site.latitude >= 16) return 'Miền Bắc'
-    if (site.latitude >= 12) return 'Miền Trung'
-    return 'Miền Nam'
-  }
-
-  const haystack = `${site.name} ${site.location || ''}`.toLowerCase()
-  if (/(ha noi|hanoi|hai phong|quang ninh|thai binh|bac ninh)/.test(haystack)) return 'Miền Bắc'
-  if (/(da nang|danang|hue|quang nam|quang ngai|nha trang)/.test(haystack)) return 'Miền Trung'
-  return 'Miền Nam'
-}
-
-function deriveCluster(site: Site) {
-  const location = site.location?.replace(/[_|]/g, '-')?.trim()
-  if (location) {
-    const parts = location.split('-').map((item) => item.trim()).filter(Boolean)
-    if (parts.length > 1) return parts[parts.length - 1]
-    return location
-  }
-
-  if (site.device_type) return `${site.device_type.toUpperCase()} Cluster`
-  return 'Portfolio Cluster'
-}
-
-function getSiteHealth(site: Site, latest: SiteTelemetry | null): SiteHealth {
-  if (!latest) return site.status === 'online' ? 'warning' : 'critical'
-  if (!latest.is_online) return 'critical'
-  if ((latest.power || 0) < 800) return 'warning'
-  return 'healthy'
-}
-
-function statusMeta(health: SiteHealth) {
-  return {
-    healthy: {
-      dot: 'bg-emerald-400',
-      pill: 'bg-emerald-100 text-emerald-700',
-      border: 'border-emerald-400/30',
-      label: 'Vận hành tốt',
-    },
-    warning: {
-      dot: 'bg-amber-400',
-      pill: 'bg-amber-100 text-amber-700',
-      border: 'border-amber-400/30',
-      label: 'Cần theo dõi',
-    },
-    critical: {
-      dot: 'bg-rose-400',
-      pill: 'bg-rose-100 text-rose-700',
-      border: 'border-rose-400/30',
-      label: 'Cần xử lý',
-    },
-  }[health]
 }
 
 export default function DashboardPage() {
   const [sites, setSites] = useState<Site[]>([])
   const [selectedSite, setSelectedSite] = useState<Site | null>(null)
-  const [historyPoints, setHistoryPoints] = useState<StatsHistoryPoint[]>([])
   const [statsOverview, setStatsOverview] = useState<StatsOverview | null>(null)
   const [latestBySite, setLatestBySite] = useState<Record<number, SiteTelemetry>>({})
-  const [weatherObservations, setWeatherObservations] = useState<WeatherObservation[]>([])
-  const [sourceSyncLogs, setSourceSyncLogs] = useState<SourceSyncLog[]>([])
-  const [sourceConnectors, setSourceConnectors] = useState<SourceConnector[]>([])
+  const [historyPoints, setHistoryPoints] = useState<StatsHistoryPoint[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [showSourceTools, setShowSourceTools] = useState(false)
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null)
-  const [realtimeState, setRealtimeState] = useState<RealtimeState>('connecting')
-  const [importLoading, setImportLoading] = useState(false)
-  const [importFeedback, setImportFeedback] = useState<string | null>(null)
-  const [regionFilter, setRegionFilter] = useState<string>('all')
-  const [clusterFilter, setClusterFilter] = useState<string>('all')
-  const [healthFilter, setHealthFilter] = useState<'all' | SiteHealth>('all')
   const [activeTab, setActiveTab] = useState<'overview' | 'details'>('overview')
-  const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | '60d'>('7d')
-  const [autoRefresh, setAutoRefresh] = useState(false)
-  const [formData, setFormData] = useState<FormData>({
-    name: '',
-    location: '',
-    latitude: '',
-    longitude: '',
-    ip_address: '',
-    device_type: 'generic',
-  })
-  const [importForm, setImportForm] = useState({
-    source_url: '',
-    file_path: '',
-    limit: '200',
-  })
+  const [realtimeState, setRealtimeState] = useState<RealtimeState>('connecting')
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null)
   const selectedSiteIdRef = useRef<number | null>(null)
 
-  useEffect(() => {
-    selectedSiteIdRef.current = selectedSite?.id ?? null
-  }, [selectedSite])
+  // Helper functions
+  const deriveRegion = (site: Site) => {
+    if (site.latitude !== undefined && site.latitude !== null) {
+      if (site.latitude >= 16) return 'Miền Bắc'
+      if (site.latitude >= 12) return 'Miền Trung'
+      return 'Miền Nam'
+    }
+    return 'Miền Nam'
+  }
+
+  const getSiteHealth = (site: Site, latest: SiteTelemetry | null): SiteHealth => {
+    if (!latest) return site.status === 'online' ? 'warning' : 'critical'
+    if (!latest.is_online) return 'critical'
+    if ((latest.power || 0) < 800) return 'warning'
+    return 'healthy'
+  }
+
+  // Fetch data
+  const fetchSites = async () => {
+    try {
+      const resp = await axios.get(`${API_BASE}/inverters`)
+      setSites(resp.data as Site[])
+      setLoading(false)
+    } catch (err) {
+      console.error('Failed to fetch sites', err)
+      setLoading(false)
+    }
+  }
 
   const fetchStatsOverview = async () => {
     try {
       const resp = await axios.get(`${API_BASE}/stats/overview`)
-      const nextOverview = resp.data as StatsOverview
-      setStatsOverview(nextOverview)
-      if (nextOverview.last_updated) setLastUpdated(nextOverview.last_updated)
+      setStatsOverview(resp.data as StatsOverview)
     } catch {
       setStatsOverview(null)
     }
   }
 
-  const fetchLatestForSites = async (nextSites: Site[]) => {
+  const fetchLatestForSites = async (sitesToUpdate: Site[]) => {
     const responses = await Promise.all(
-      nextSites.map(async (site) => {
+      sitesToUpdate.map(async (site) => {
         try {
           const resp = await axios.get(`${API_BASE}/inverters/${site.id}/latest`)
           return resp.data as SiteTelemetry
@@ -339,1037 +267,253 @@ export default function DashboardPage() {
       if (reading) nextLatest[reading.inverter_id] = reading
     })
     setLatestBySite(nextLatest)
-
-    const activeId = selectedSiteIdRef.current
-    if (activeId && nextLatest[activeId]?.timestamp) setLastUpdated(nextLatest[activeId].timestamp)
   }
 
-  const fetchSites = async () => {
+  const fetchHistory = async (id: number) => {
     try {
-      const resp = await axios.get(`${API_BASE}/inverters`)
-      const nextSites = resp.data as Site[]
-      setSites(nextSites)
-
-      if (!selectedSiteIdRef.current && nextSites.length > 0) {
-        setSelectedSite(nextSites[0])
-      } else if (selectedSiteIdRef.current) {
-        const stillExists = nextSites.find((site) => site.id === selectedSiteIdRef.current)
-        setSelectedSite(stillExists ?? nextSites[0] ?? null)
-      }
-
-      await fetchLatestForSites(nextSites)
-      setError(null)
-      setLoading(false)
-    } catch (e: any) {
-      setError(e?.message ?? 'Lỗi tải danh mục site')
-      setLoading(false)
-    }
-  }
-
-  const fetchSiteHistory = async (siteId: number) => {
-    try {
-      const resp = await axios.get(`${API_BASE}/stats/history`, {
-        params: { inverter_id: siteId, hours: 24, limit: 48 },
-      })
-      setHistoryPoints((resp.data?.points ?? []) as StatsHistoryPoint[])
+      const resp = await axios.get(`${API_BASE}/stats/history?inverter_id=${id}`)
+      setHistoryPoints(resp.data as StatsHistoryPoint[])
     } catch {
       setHistoryPoints([])
     }
   }
 
-  const fetchSourceData = async () => {
-    try {
-      const [weatherResp, syncResp, connectorsResp] = await Promise.all([
-        axios.get(`${API_BASE}/weather/observations`, { params: { limit: 6 } }),
-        axios.get(`${API_BASE}/sources/sync-logs`, { params: { limit: 6 } }),
-        axios.get(`${API_BASE}/sources/connectors`),
-      ])
-
-      setWeatherObservations((weatherResp.data ?? []) as WeatherObservation[])
-      setSourceSyncLogs((syncResp.data ?? []) as SourceSyncLog[])
-      setSourceConnectors((connectorsResp.data ?? []) as SourceConnector[])
-    } catch {
-      setWeatherObservations([])
-      setSourceSyncLogs([])
-      setSourceConnectors([])
-    }
-  }
-
-  const handleImportEnergyData = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!importForm.source_url.trim() && !importForm.file_path.trim()) {
-      setImportFeedback('Nhập URL hoặc file path để import.')
-      return
-    }
-
-    if (importForm.source_url.trim() && importForm.file_path.trim()) {
-      setImportFeedback('Chỉ dùng một nguồn mỗi lần: URL hoặc file path.')
-      return
-    }
-
-    setImportLoading(true)
-    setImportFeedback(null)
-
-    try {
-      const resp = await axios.post(`${API_BASE}/imports/energydata`, {
-        source_url: importForm.source_url.trim() || undefined,
-        file_path: importForm.file_path.trim() || undefined,
-        limit: Number.parseInt(importForm.limit, 10) || 200,
-      })
-
-      await fetchSourceData()
-      const summary = resp.data as { records_processed?: number; loaded_from?: string }
-      setImportFeedback(`Import xong ${summary.records_processed ?? 0} dòng từ ${summary.loaded_from ?? 'nguồn đã chọn'}.`)
-    } catch (e: any) {
-      setImportFeedback(e?.response?.data?.detail ?? e?.message ?? 'Import thất bại')
-    } finally {
-      setImportLoading(false)
-    }
-  }
-
   useEffect(() => {
-    const bootstrap = async () => {
-      await Promise.all([fetchSites(), fetchStatsOverview(), fetchSourceData()])
-    }
-    bootstrap()
+    fetchSites()
+    fetchStatsOverview()
   }, [])
 
   useEffect(() => {
-    if (!selectedSite) return
-
-    const refreshSelected = async () => {
-      await Promise.all([fetchSiteHistory(selectedSite.id), fetchStatsOverview(), fetchSourceData()])
+    if (sites.length > 0) {
+      fetchLatestForSites(sites)
     }
+  }, [sites])
 
-    refreshSelected()
-
-    const intervalId = window.setInterval(() => {
-      void refreshSelected()
-    }, 60000)
-
-    return () => window.clearInterval(intervalId)
+  useEffect(() => {
+    if (selectedSite) {
+      fetchHistory(selectedSite.id)
+    }
   }, [selectedSite])
 
-  useEffect(() => {
-    if (!autoRefresh) return
-
-    const intervalId = window.setInterval(() => {
-      void Promise.all([
-        fetchSites(),
-        fetchStatsOverview(),
-        fetchSourceData(),
-        selectedSiteIdRef.current ? fetchSiteHistory(selectedSiteIdRef.current) : Promise.resolve(),
-      ])
-    }, 15000)
-
-    return () => window.clearInterval(intervalId)
-  }, [autoRefresh])
-
-  useEffect(() => {
-    let closedByApp = false
-    let reconnectTimer: number | undefined
-    let socket: WebSocket | null = null
-
-    const connect = () => {
-      setRealtimeState('connecting')
-      socket = new WebSocket(WS_URL)
-
-      socket.onopen = () => {
-        setRealtimeState('live')
-      }
-
-      socket.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data) as TelemetryMessage
-          if (message.type !== 'telemetry' || !message.reading) return
-
-          const reading = message.reading
-          setLastUpdated(reading.timestamp)
-          setLatestBySite((prev) => ({ ...prev, [reading.inverter_id]: reading }))
-          if (message.stats_overview) setStatsOverview(message.stats_overview)
-
-          setSites((prev) => prev.map((site) => (
-            site.id === reading.inverter_id
-              ? { ...site, status: reading.is_online ? 'online' : 'offline' }
-              : site
-          )))
-
-          if (selectedSiteIdRef.current === reading.inverter_id) {
-            setHistoryPoints((prev) => {
-              const nextPoint: StatsHistoryPoint = {
-                timestamp: reading.timestamp,
-                inverter_id: reading.inverter_id,
-                power: reading.power,
-                energy_today: reading.energy_today,
-                is_online: reading.is_online,
-              }
-              return [...prev, nextPoint]
-                .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-                .slice(-48)
-            })
-          }
-        } catch {
-          // ignore malformed payloads
-        }
-      }
-
-      socket.onclose = () => {
-        if (closedByApp) return
-        setRealtimeState('offline')
-        reconnectTimer = window.setTimeout(connect, 3000)
-      }
-
-      socket.onerror = () => {
-        socket?.close()
-      }
-    }
-
-    connect()
-
-    return () => {
-      closedByApp = true
-      if (reconnectTimer) window.clearTimeout(reconnectTimer)
-      socket?.close()
-    }
-  }, [])
-
-  const handleAddSite = async (e: React.FormEvent) => {
-    e.preventDefault()
-    try {
-      await axios.post(`${API_BASE}/inverters`, {
-        ...formData,
-        latitude: parseFloat(formData.latitude) || 0,
-        longitude: parseFloat(formData.longitude) || 0,
-      })
-      setShowAddForm(false)
-      setFormData({
-        name: '',
-        location: '',
-        latitude: '',
-        longitude: '',
-        ip_address: '',
-        device_type: 'generic',
-      })
-      await Promise.all([fetchSites(), fetchStatsOverview()])
-    } catch (e: any) {
-      alert(`Lỗi thêm site: ${e?.message ?? 'Unknown error'}`)
-    }
-  }
-
-  const handleDeleteSite = async (siteId: number) => {
-    if (!confirm('Xoá site này?')) return
-    try {
-      await axios.delete(`${API_BASE}/inverters/${siteId}`)
-      if (selectedSite?.id === siteId) {
-        setSelectedSite(null)
-        setHistoryPoints([])
-      }
-      await Promise.all([fetchSites(), fetchStatsOverview()])
-    } catch {
-      alert('Xoá thất bại')
-    }
-  }
-
-  const siteRows = useMemo<SiteRow[]>(() => (
-    sites.map((site) => {
+  // Compute site rows
+  const siteRows = useMemo(() => {
+    return sites.map((site) => {
       const latest = latestBySite[site.id] ?? null
-      return {
-        site,
-        latest,
-        region: deriveRegion(site),
-        cluster: deriveCluster(site),
-        health: getSiteHealth(site, latest),
-        currentPower: latest?.power ?? 0,
-        energyToday: latest?.energy_today ?? 0,
-        temperature: latest?.temperature ?? null,
-      }
+      const region = deriveRegion(site)
+      const cluster = site.device_type ? `${site.device_type.toUpperCase()} Cluster` : 'Portfolio Cluster'
+      const health = getSiteHealth(site, latest)
+      const currentPower = latest?.power ?? 0
+      const energyToday = latest?.energy_today ?? 0
+      const temperature = latest?.temperature ?? null
+      return { site, latest, region, cluster, health, currentPower, energyToday, temperature }
     })
-  ), [sites, latestBySite])
+  }, [sites, latestBySite])
 
-  const availableRegions = useMemo(
-    () => Array.from(new Set(siteRows.map((row) => row.region))).sort(),
-    [siteRows],
-  )
-
-  const availableClusters = useMemo(
-    () => Array.from(new Set(siteRows.map((row) => row.cluster))).sort(),
-    [siteRows],
-  )
-
-  const filteredSiteRows = useMemo(() => (
-    siteRows.filter((row) => {
-      if (regionFilter !== 'all' && row.region !== regionFilter) return false
-      if (clusterFilter !== 'all' && row.cluster !== clusterFilter) return false
-      if (healthFilter !== 'all' && row.health !== healthFilter) return false
-      return true
-    })
-  ), [siteRows, regionFilter, clusterFilter, healthFilter])
-
-  const selectedLatest = selectedSite ? latestBySite[selectedSite.id] ?? null : null
-
-  const regionalMetrics = useMemo(() => {
-    const grouped = new Map<string, { region: string; sites: number; online: number; totalPower: number; totalEnergy: number }>()
-
-    filteredSiteRows.forEach((row) => {
-      const current = grouped.get(row.region) || {
-        region: row.region,
-        sites: 0,
-        online: 0,
-        totalPower: 0,
-        totalEnergy: 0,
-      }
-      current.sites += 1
-      current.online += row.health === 'critical' ? 0 : 1
-      current.totalPower += row.currentPower
-      current.totalEnergy += row.energyToday
-      grouped.set(row.region, current)
-    })
-
-    return Array.from(grouped.values()).sort((a, b) => b.totalPower - a.totalPower)
-  }, [filteredSiteRows])
-
-  const clusterRanking = useMemo(() => {
-    const grouped = new Map<string, { cluster: string; sites: number; totalPower: number; avgEnergy: number; onlineShare: number }>()
-
-    filteredSiteRows.forEach((row) => {
-      const current = grouped.get(row.cluster) || {
-        cluster: row.cluster,
-        sites: 0,
-        totalPower: 0,
-        avgEnergy: 0,
-        onlineShare: 0,
-      }
-      current.sites += 1
-      current.totalPower += row.currentPower
-      current.avgEnergy += row.energyToday
-      current.onlineShare += row.health === 'critical' ? 0 : 1
-      grouped.set(row.cluster, current)
-    })
-
-    return Array.from(grouped.values())
-      .map((item) => ({
-        ...item,
-        avgEnergy: item.sites ? item.avgEnergy / item.sites : 0,
-        onlineShare: item.sites ? Math.round((item.onlineShare / item.sites) * 100) : 0,
-      }))
-      .sort((a, b) => (b.totalPower + b.avgEnergy * 100) - (a.totalPower + a.avgEnergy * 100))
-  }, [filteredSiteRows])
-
-  const watchlist = useMemo(() => (
-    [...filteredSiteRows]
-      .filter((row) => row.health !== 'healthy')
-      .sort((a, b) => a.currentPower - b.currentPower)
-      .slice(0, 4)
-  ), [filteredSiteRows])
-
-  const topSites = useMemo(() => (
-    [...filteredSiteRows]
-      .sort((a, b) => (b.currentPower + b.energyToday * 100) - (a.currentPower + a.energyToday * 100))
-      .slice(0, 5)
-  ), [filteredSiteRows])
-
-  const mapSites = useMemo(() => {
-    const withCoords = filteredSiteRows.filter((row) => row.site.latitude !== undefined && row.site.longitude !== undefined)
-    const latitudes = withCoords.map((row) => row.site.latitude as number)
-    const longitudes = withCoords.map((row) => row.site.longitude as number)
-    const minLat = latitudes.length ? Math.min(...latitudes) : 8
-    const maxLat = latitudes.length ? Math.max(...latitudes) : 23
-    const minLng = longitudes.length ? Math.min(...longitudes) : 102
-    const maxLng = longitudes.length ? Math.max(...longitudes) : 110
-
-    return filteredSiteRows.map((row, index) => {
-      let x = 18 + (index % 3) * 24
-      let y = 20 + Math.floor(index / 3) * 18
-
-      if (row.site.latitude !== undefined && row.site.longitude !== undefined && maxLat !== minLat && maxLng !== minLng) {
-        x = 12 + (((row.site.longitude as number) - minLng) / (maxLng - minLng)) * 72
-        y = 78 - (((row.site.latitude as number) - minLat) / (maxLat - minLat)) * 58
-      }
-
-      return { ...row, x, y }
-    })
-  }, [filteredSiteRows])
-
-  const overview = useMemo(() => {
-    const totalSites = filteredSiteRows.length
-    const healthySites = filteredSiteRows.filter((row) => row.health === 'healthy').length
-    const watchSites = filteredSiteRows.filter((row) => row.health === 'warning').length
-    const criticalSites = filteredSiteRows.filter((row) => row.health === 'critical').length
-    const totalPower = filteredSiteRows.reduce((sum, row) => sum + row.currentPower, 0)
-    const totalEnergy = filteredSiteRows.reduce((sum, row) => sum + row.energyToday, 0)
-    const bestRegion = regionalMetrics[0]?.region ?? 'Chưa có dữ liệu'
-    const healthScore = totalSites ? Math.round(((healthySites + watchSites * 0.5) / totalSites) * 100) : 0
-
-    return {
-      totalSites,
-      healthySites,
-      watchSites,
-      criticalSites,
-      totalPower,
-      totalEnergy,
-      bestRegion,
-      healthScore,
-    }
-  }, [regionalMetrics, filteredSiteRows])
-
-  const latestSourceSync = sourceSyncLogs[0] ?? null
-  const latestWeather = weatherObservations[0] ?? null
-  const connectorReadiness = useMemo(
-    () => sourceConnectors.filter((connector) => connector.implementation_status === 'stub').length,
-    [sourceConnectors],
-  )
-
-  const chartData = useMemo(
-    () => [...historyPoints].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()),
-    [historyPoints],
-  )
-
-  const recentRequests = useMemo(() => (
-    [...filteredSiteRows]
-      .sort((a, b) => new Date(b.latest?.timestamp || 0).getTime() - new Date(a.latest?.timestamp || 0).getTime())
-      .slice(0, 8)
-      .map((row) => ({
-        id: row.site.id,
-        model: row.site.device_type || 'generic',
-        inOut: `${Math.round(row.currentPower)}W / ${row.temperature !== null ? `${Math.round(row.temperature)}°C` : '--'}`,
-        when: row.latest?.timestamp ? formatSyncTime(row.latest.timestamp) : '--:--',
-      }))
-  ), [filteredSiteRows])
-
-  if (loading) {
-    return <div className="rounded-3xl border border-white/10 bg-slate-900/70 p-6 text-slate-300">Đang tải control center...</div>
-  }
-
-  if (error) {
-    return <div className="rounded-3xl border border-rose-500/20 bg-rose-500/10 p-6 text-rose-300">{error}</div>
-  }
+  const healthyCount = siteRows.filter(r => r.health === 'healthy').length
+  const warningCount = siteRows.filter(r => r.health === 'warning').length
+  const totalPower = (statsOverview?.total_power || 0) / 1000
 
   return (
-    <div className="space-y-6">
-      <section className="panel-scanline overflow-hidden rounded-xl border border-white/10 bg-slate-900/85 p-5 md:p-6 shadow-xl shadow-black/20">
-        <div className="grid gap-5 lg:grid-cols-[1.35fr_0.85fr] lg:items-end">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-cyan-300">
-              <span className={`h-2 w-2 rounded-full ${realtimeState === 'live' ? 'bg-emerald-400 animate-pulse' : realtimeState === 'connecting' ? 'bg-amber-400 animate-pulse' : 'bg-rose-400'}`} />
-              multi-site solar control center
-            </div>
-            <h2 className="mt-4 max-w-3xl text-3xl font-semibold tracking-tight text-white md:text-5xl">
-              Điều hành toàn bộ danh mục điện mặt trời trên một bản đồ duy nhất.
-            </h2>
-            <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-400 md:text-base">
-              Không còn dừng ở từng inverter riêng lẻ. Màn hình này đẩy trọng tâm lên tầng điều hành danh mục site: nhìn theo khu vực, theo cụm dự án, theo mức độ ưu tiên và ra quyết định nhanh hơn.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                className="btn-primary"
-                onClick={() => Promise.all([fetchSites(), fetchStatsOverview(), fetchSourceData(), selectedSite ? fetchSiteHistory(selectedSite.id) : Promise.resolve()])}
-              >
-                <span className="inline-flex items-center gap-1.5"><IconRefresh size={14} /> Làm mới</span>
-              </button>
-              <button
-                className="btn-ghost"
-                onClick={() => setShowAddForm((value) => !value)}
-              >
-                <span className="inline-flex items-center gap-1.5"><IconPlus size={14} /> {showAddForm ? 'Đóng form thêm site' : 'Thêm site mới'}</span>
-              </button>
-              <button
-                className="btn-success"
-                onClick={() => setShowSourceTools((value) => !value)}
-              >
-                <span className="inline-flex items-center gap-1.5"><IconFilter size={14} /> {showSourceTools ? 'Ẩn data sources' : 'Mở data sources'}</span>
-              </button>
-              <button
-                className="btn-ghost"
-                onClick={() => setAutoRefresh((value) => !value)}
-              >
-                <span className="inline-flex items-center gap-1.5"><IconActivity size={14} /> Auto refresh {autoRefresh ? 'ON' : 'OFF'}</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-              <div className="text-xs uppercase tracking-[0.14em] text-slate-500">Khu vực dẫn đầu</div>
-              <div className="mt-2 text-lg font-semibold text-white">{overview.bestRegion}</div>
-              <div className="mt-1 text-sm text-slate-400">Dẫn đầu theo công suất hiện tại toàn danh mục</div>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-              <div className="text-xs uppercase tracking-[0.14em] text-slate-500">Realtime fabric</div>
-              <div className="mt-2 flex items-center gap-2 text-lg font-semibold text-white">
-                <span className={`inline-flex h-2.5 w-2.5 rounded-full ${realtimeState === 'live' ? 'bg-emerald-400 animate-pulse' : realtimeState === 'connecting' ? 'bg-amber-400 animate-pulse' : 'bg-rose-400'}`} />
-                {realtimeState === 'live' ? 'LIVE' : realtimeState === 'connecting' ? 'Đang nối' : 'Mất kết nối'}
+    <div className="min-h-screen animate-fade-in">
+      {/* Header - Design C Style */}
+      <header className="px-6 py-5 border-b border-dark-border bg-dark-bg/80 backdrop-blur-xl sticky top-0 z-50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 group">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-emerald-500/20">
+                <IconSun size={24} className="text-white" />
               </div>
-              <div className="mt-1 text-sm text-slate-400">Cập nhật gần nhất {formatSyncTime(lastUpdated)}</div>
+              <div>
+                <h1 className="text-lg font-bold text-white transition-colors duration-200 group-hover:text-emerald-300">SolarVN</h1>
+                <p className="text-xs text-slate-500">Control Center</p>
+              </div>
             </div>
-            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-              <div className="text-xs uppercase tracking-[0.14em] text-slate-500">Điểm sức khoẻ danh mục</div>
-              <div className="mt-2 text-lg font-semibold text-white">{overview.healthScore}%</div>
-              <div className="mt-1 text-sm text-slate-400">{overview.healthySites} site tốt • {overview.criticalSites} site cần xử lý</div>
+            
+            <div className="h-8 w-px bg-dark-border mx-2"></div>
+            
+            <nav className="flex items-center gap-2">
+              <NavPill 
+                icon={<IconActivity size={16} />} 
+                label="Tổng quan" 
+                active={activeTab === 'overview'} 
+                onClick={() => setActiveTab('overview')} 
+              />
+              <NavPill 
+                icon={<IconBolt size={16} />} 
+                label="Chi tiết" 
+                active={activeTab === 'details'} 
+                onClick={() => setActiveTab('details')} 
+              />
+            </nav>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <div className="dc-live-badge animate-pulse">
+              <span className="dot"></span>
+              <span className="text-xs font-medium text-emerald-400">Live</span>
             </div>
+            <button 
+              className="w-9 h-9 rounded-lg bg-white/[0.05] border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.1] hover:border-white/20 transition-all duration-300 active:scale-95"
+              onClick={() => fetchStatsOverview()}
+            >
+              <IconRefresh size={20} />
+            </button>
+            <button className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-white font-semibold text-sm transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/20 active:scale-95">
+              M
+            </button>
           </div>
         </div>
-      </section>
+      </header>
 
-      <InverterModelForm />
-
-      {showAddForm && (
-        <form onSubmit={handleAddSite} className="glass-panel grid grid-cols-1 gap-3 p-5 md:grid-cols-2">
-          <input className="input-control" placeholder="Tên site *" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-          <input className="input-control" placeholder="Vị trí / tỉnh thành" value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} />
-          <input className="input-control" placeholder="Latitude" value={formData.latitude} onChange={(e) => setFormData({ ...formData, latitude: e.target.value })} />
-          <input className="input-control" placeholder="Longitude" value={formData.longitude} onChange={(e) => setFormData({ ...formData, longitude: e.target.value })} />
-          <input className="input-control" placeholder="IP collector / gateway" value={formData.ip_address} onChange={(e) => setFormData({ ...formData, ip_address: e.target.value })} />
-          <select className="input-control" value={formData.device_type} onChange={(e) => setFormData({ ...formData, device_type: e.target.value })}>
-            <option value="generic">Generic</option>
-            <option value="solaredge">SolarEdge</option>
-            <option value="sungrow">Sungrow</option>
-            <option value="goodwe">GoodWe</option>
-          </select>
-          <div className="flex gap-2 md:col-span-2">
-            <button className="btn-primary">Lưu site</button>
-            <button type="button" className="btn-ghost" onClick={() => setShowAddForm(false)}>Huỷ</button>
+      <main className="p-6 space-y-6">
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="flex flex-col items-center gap-4 animate-fade-in">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-cyan-500 animate-spin flex items-center justify-center">
+                <IconSun size={24} className="text-white" />
+              </div>
+              <div className="text-slate-400">Đang tải dữ liệu...</div>
+            </div>
           </div>
-        </form>
-      )}
-
-      <section className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-flex rounded-xl border border-white/10 bg-white/5 p-1">
-            <button onClick={() => setActiveTab('overview')} className={`rounded-lg px-3 py-1.5 text-sm ${activeTab === 'overview' ? 'bg-white text-slate-900' : 'text-slate-300'}`}>Overview</button>
-            <button onClick={() => setActiveTab('details')} className={`rounded-lg px-3 py-1.5 text-sm ${activeTab === 'details' ? 'bg-white text-slate-900' : 'text-slate-300'}`}>Details</button>
-          </div>
-          <div className="inline-flex rounded-xl border border-white/10 bg-white/5 p-1">
-            {(['24h', '7d', '30d', '60d'] as const).map((range) => (
-              <button key={range} onClick={() => setTimeRange(range)} className={`rounded-lg px-3 py-1.5 text-xs uppercase ${timeRange === range ? 'bg-cyan-300 text-slate-900' : 'text-slate-300'}`}>{range}</button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {activeTab === 'overview' ? (
-        <>
-          <section className="space-y-4">
-            <div className="kpi-divider" />
-            <div className="scada-grid md:grid-cols-2 xl:grid-cols-4">
-              <OverviewMetric
-                label="Total Requests"
-                value={formatMetric(overview.totalSites)}
-                hint={`${overview.healthySites} active nodes`}
-                accent="emerald"
-                onClick={() => setHealthFilter('all')}
-                active={healthFilter === 'all'}
+        ) : (
+          <>
+            {/* Stats Grid - Design C with improved spacing */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <StatCard
+                icon={<IconBolt size={24} className="text-emerald-400" />}
+                title="Tổng Sites"
+                value={sites.length.toString()}
+                subtitle={`${healthyCount} online • ${warningCount} warning`}
+                change="+2 mới"
+                changeType="up"
+                delay={0}
               />
-              <OverviewMetric
-                label="Input Power"
-                value={`${formatMetric(overview.totalPower)} W`}
-                hint="Current total portfolio power"
-                accent="cyan"
-                onClick={() => setHealthFilter('healthy')}
-                active={healthFilter === 'healthy'}
+              <StatCard
+                icon={<IconSun size={24} className="text-blue-400" />}
+                title="Tổng công suất"
+                value={`${totalPower.toFixed(1)} MW`}
+                subtitle="so với hôm qua"
+                change="+8.2%"
+                changeType="up"
+                delay={100}
               />
-              <OverviewMetric
-                label="Output Energy"
-                value={`${formatMetric(overview.totalEnergy, 2)} kWh`}
-                hint="Energy today across all sites"
-                accent="amber"
-                onClick={() => setHealthFilter('warning')}
-                active={healthFilter === 'warning'}
+              <StatCard
+                icon={<IconBattery size={24} className="text-purple-400" />}
+                title="Sản lượng hôm nay"
+                value={`${(statsOverview?.total_energy_today || 0).toFixed(1)} MWh`}
+                subtitle="so với hôm qua"
+                change="+12.5%"
+                changeType="up"
+                delay={200}
               />
-              <OverviewMetric
-                label="Est. Health"
-                value={`${overview.healthScore}%`}
-                hint="Estimated portfolio reliability"
-                accent="violet"
-                onClick={() => setHealthFilter('critical')}
-                active={healthFilter === 'critical'}
+              <StatCard
+                icon={<IconActivity size={24} className="text-amber-400" />}
+                title="Hiệu suất TB"
+                value="96.4%"
+                subtitle="so với hôm qua"
+                change="+2.1%"
+                changeType="up"
+                delay={300}
               />
             </div>
-          </section>
 
-          <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-            <SectionCard tone="ops" eyebrow="network graph" title="Provider / Site Flow" description="Luồng vận hành giữa danh mục site và control center.">
-              <div className="h-[52vh]">
-                <Suspense fallback={<div className="flex h-full items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/5 text-slate-400">Đang tải sơ đồ...</div>}>
-                  <MapComponent siteRows={filteredSiteRows} onSiteClick={(siteId) => {
-                    const matched = filteredSiteRows.find((row) => row.site.id === siteId)?.site ?? null
-                    setSelectedSite(matched)
-                  }} selectedSiteId={selectedSite?.id || null} />
+            {/* Map + Sites Row - Improved grid */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              {/* Map */}
+              <div className="xl:col-span-2 dc-card p-6 animate-slide-up" style={{ animationDelay: '200ms' }}>
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-3">
+                    <h3 className="font-semibold text-white text-lg">Vị trí Sites</h3>
+                    <span className="px-2 py-1 rounded-lg bg-slate-800/50 text-xs text-slate-400">{sites.length} địa điểm</span>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <span className="text-slate-400">Online</span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                      <span className="text-slate-400">Warning</span>
+                    </span>
+                  </div>
+                </div>
+                <div className="map-wrapper rounded-xl overflow-hidden" style={{ height: '350px' }}>
+                  <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-500"><div className="animate-spin w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center"><IconMap size={20} /></div></div>}>
+                    <MapComponent 
+                      siteRows={siteRows}
+                      onSiteClick={(id) => setSelectedSite(sites.find(s => s.id === id) || null)}
+                      selectedSiteId={selectedSite?.id || null}
+                    />
+                  </Suspense>
+                </div>
+              </div>
+              
+              {/* Site List - Improved */}
+              <div className="dc-card animate-slide-up" style={{ animationDelay: '300ms' }}>
+                <div className="p-5 border-b border-dark-border">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-white">Sites hoạt động</h3>
+                    <span className="px-2 py-1 rounded-lg bg-emerald-500/10 text-xs text-emerald-400">{siteRows.length} sites</span>
+                  </div>
+                </div>
+                <div className="max-h-[420px] overflow-y-auto scrollbar-thin">
+                  {siteRows.length > 0 ? (
+                    siteRows.map((row, index) => (
+                      <SiteListItem
+                        key={row.site.id}
+                        site={row.site}
+                        latest={row.latest}
+                        health={row.health}
+                        onClick={() => setSelectedSite(row.site)}
+                        index={index}
+                      />
+                    ))
+                  ) : (
+                    <EmptyState message="Chưa có site nào hoạt động" />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Chart Section - Improved */}
+            <div className="dc-card p-6 animate-slide-up" style={{ animationDelay: '400ms' }}>
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                    <IconChart size={20} className="text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white text-lg">Công suất theo thời gian thực</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Cập nhật mỗi 15 giây</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <select className="dc-input w-36 bg-dark-surface border-dark-border text-slate-300 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500/30 transition-all duration-200">
+                    <option>24 giờ</option>
+                    <option>7 ngày</option>
+                    <option>30 ngày</option>
+                  </select>
+                </div>
+              </div>
+              <div className="dc-chart-area rounded-xl" style={{ height: '280px' }}>
+                <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-500"><div className="animate-pulse">Đang tải biểu đồ...</div></div>}>
+                  <Chart data={historyPoints} />
                 </Suspense>
               </div>
-            </SectionCard>
-
-            <SectionCard tone="default" eyebrow="recent requests" title="Recent Requests" description="Bản ghi truy vấn gần nhất theo từng site.">
-              <div className="table-shell overflow-hidden">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="table-head text-left">
-                      <th className="px-3 py-2">Model</th>
-                      <th className="px-3 py-2">In / Out</th>
-                      <th className="px-3 py-2">When</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {recentRequests.map((req) => (
-                      <tr key={req.id} className="table-row-striped">
-                        <td className="px-3 py-2 text-white">{req.model}</td>
-                        <td className="px-3 py-2 text-slate-300">{req.inOut}</td>
-                        <td className="px-3 py-2 text-slate-400">{req.when}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </SectionCard>
-          </section>
-        </>
-      ) : (
-        <>
-          <section className="space-y-4">
-            <div className="kpi-divider" />
-            <div className="scada-grid md:grid-cols-2 xl:grid-cols-4">
-              <OverviewMetric
-                label="Tổng site"
-                value={String(overview.totalSites)}
-                hint={`${overview.healthySites} site vận hành tốt`}
-                accent="emerald"
-                onClick={() => setHealthFilter('all')}
-                active={healthFilter === 'all'}
-              />
-              <OverviewMetric
-                label="Công suất toàn danh mục"
-                value={`${formatMetric(overview.totalPower)} W`}
-                hint="Tổng công suất tức thời toàn mạng"
-                accent="cyan"
-                onClick={() => setHealthFilter('healthy')}
-                active={healthFilter === 'healthy'}
-              />
-              <OverviewMetric
-                label="Sản lượng hôm nay"
-                value={`${formatMetric(overview.totalEnergy, 2)} kWh`}
-                hint="Tổng sản lượng theo dữ liệu live mới nhất"
-                accent="amber"
-                onClick={() => setHealthFilter('warning')}
-                active={healthFilter === 'warning'}
-              />
-              <OverviewMetric
-                label="Site cần chú ý"
-                value={String(overview.watchSites + overview.criticalSites)}
-                hint={`${overview.criticalSites} site mức ưu tiên cao`}
-                accent="violet"
-                onClick={() => setHealthFilter('critical')}
-                active={healthFilter === 'critical'}
-              />
             </div>
-          </section>
-
-          <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <SectionCard
-          tone="ops"
-          eyebrow="Tổng quan vận hành"
-          title="Bản đồ & Tình trạng site"
-          description="Theo dõi trạng thái các site trên bản đồ, lọc theo khu vực, cụm dự án và sức khỏe để có cái nhìn tổng quát."
-        >
-          <div className="h-[50vh]">
-            <Suspense
-              fallback={(
-                <div className="flex h-full items-center justify-center rounded-3xl border border-dashed border-white/10 bg-white/5 text-slate-400">
-                  Đang tải bản đồ...
-                </div>
-              )}
-            >
-              <MapComponent siteRows={filteredSiteRows} onSiteClick={(siteId) => {
-                const matched = filteredSiteRows.find((row) => row.site.id === siteId)?.site ?? null
-                setSelectedSite(matched)
-              }} selectedSiteId={selectedSite?.id || null} />
-            </Suspense>
-          </div>
-        </SectionCard>
-
-        {selectedSite && (
-          <SiteDetailPanel
-            site={selectedSite}
-            latest={selectedLatest}
-            health={getSiteHealth(selectedSite, selectedLatest)}
-            historyPoints={chartData}
-            onClose={() => setSelectedSite(null)}
-          />
+          </>
         )}
-      </div>
+      </main>
 
-      <section className="grid gap-6 xl:grid-cols-[0.82fr_1.18fr]">
-        <div className="space-y-6">
-          <SectionCard
-            tone="alert"
-            eyebrow="watchlist"
-            title="1. Alert — Site cần ưu tiên xử lý"
-            description="Nhìn ngay danh sách cần phản ứng trước để đội vận hành không bị loãng bởi toàn bộ danh mục."
-          >
-            <div className="space-y-3">
-              {watchlist.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.04] p-4 text-sm text-slate-400">Chưa có site nào vượt ngưỡng cảnh báo.</div>
-              ) : watchlist.map((row) => {
-                const meta = statusMeta(row.health)
-                return (
-                  <button key={row.site.id} type="button" onClick={() => setSelectedSite(row.site)} className={`w-full rounded-3xl border ${meta.border} bg-white/5 p-4 text-left transition hover:bg-white/10`}>
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className={`h-2.5 w-2.5 rounded-full ${meta.dot}`} />
-                          <div className="font-medium text-white">{row.site.name}</div>
-                        </div>
-                        <div className="mt-1 text-sm text-slate-400">{row.region} • {row.cluster}</div>
-                      </div>
-                      <div className={`rounded-full px-3 py-1 text-xs ${meta.pill}`}>{meta.label}</div>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between text-sm text-slate-300">
-                      <span>{formatMetric(row.currentPower)} W</span>
-                      <span>{formatMetric(row.energyToday, 2)} kWh hôm nay</span>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            tone="default"
-            eyebrow="portfolio filters"
-            title="2. Action — Bộ lọc điều hành"
-            description="Chọn đúng khu vực, cụm dự án và mức độ ưu tiên trước khi ra quyết định thao tác."
-          >
-            <div className="grid gap-3 md:grid-cols-3">
-              <select className="input-control" value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)}>
-                <option value="all">Tất cả khu vực</option>
-                {availableRegions.map((region) => (
-                  <option key={region} value={region}>{region}</option>
-                ))}
-              </select>
-
-              <select className="input-control" value={clusterFilter} onChange={(e) => setClusterFilter(e.target.value)}>
-                <option value="all">Tất cả cụm</option>
-                {availableClusters.map((cluster) => (
-                  <option key={cluster} value={cluster}>{cluster}</option>
-                ))}
-              </select>
-
-              <select className="input-control" value={healthFilter} onChange={(e) => setHealthFilter(e.target.value as 'all' | SiteHealth)}>
-                <option value="all">Tất cả trạng thái</option>
-                <option value="healthy">Vận hành tốt</option>
-                <option value="warning">Cần theo dõi</option>
-                <option value="critical">Cần xử lý</option>
-              </select>
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            eyebrow="cluster ranking"
-            title="3. Context — Xếp hạng cụm dự án"
-            description="Đặt cảnh báo vào đúng bối cảnh bằng việc xem cụm nào đang kéo hiệu suất và cụm nào tụt lại."
-          >
-            <div className="space-y-3">
-              {clusterRanking.slice(0, 5).map((cluster, index) => (
-                <div key={cluster.cluster} className="flex items-center justify-between gap-3 rounded-3xl border border-white/10 bg-white/5 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-400/10 text-sm font-semibold text-cyan-300">
-                      #{index + 1}
-                    </div>
-                    <div>
-                      <div className="font-medium text-white">{cluster.cluster}</div>
-                      <div className="text-sm text-slate-400">{cluster.sites} site • online share {cluster.onlineShare}%</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-white">{formatMetric(cluster.totalPower)} W</div>
-                    <div className="text-sm text-slate-400">{formatMetric(cluster.avgEnergy, 2)} kWh/site</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-        </div>
-
-        <SectionCard
-          tone="ops"
-          eyebrow="top sites"
-          title="4. Monitor — Bảng điều hành đa site"
-          description="Sau khi lọc và xác định ưu tiên, xem nhanh từng site để chọn điểm cần drill-down."
-        >
-          <div className="space-y-3">
-            {topSites.map((row) => {
-              const meta = statusMeta(row.health)
-              const active = selectedSite?.id === row.site.id
-              return (
-                <button
-                  key={row.site.id}
-                  type="button"
-                  onClick={() => setSelectedSite(row.site)}
-                  className={`w-full rounded-3xl border p-4 text-left transition duration-200 ${active ? 'border-cyan-400/40 bg-cyan-400/10 shadow-lg shadow-cyan-400/10' : 'border-white/10 bg-white/5 hover:border-cyan-300/30 hover:bg-white/10'}`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className={`h-2.5 w-2.5 rounded-full ${meta.dot}`} />
-                        <div className="font-medium text-white">{row.site.name}</div>
-                      </div>
-                      <div className="mt-1 text-sm text-slate-400">{row.region} • {row.cluster}</div>
-                    </div>
-                    <div className={`rounded-full px-3 py-1 text-xs ${meta.pill}`}>{meta.label}</div>
-                  </div>
-                  <div className="mt-4 grid grid-cols-3 gap-2 text-sm md:gap-3">
-                    <div className="rounded-2xl bg-slate-950/70 p-3">
-                      <div className="flex items-center gap-1.5 text-slate-500">
-                        <IconBolt size={14} className="text-cyan-400" />
-                        <span>Power</span>
-                      </div>
-                      <div className="mt-1 font-semibold text-white">{formatMetric(row.currentPower)} W</div>
-                    </div>
-                    <div className="rounded-2xl bg-slate-950/70 p-3">
-                      <div className="flex items-center gap-1.5 text-slate-500">
-                        <IconBattery size={14} className="text-emerald-400" />
-                        <span>Energy</span>
-                      </div>
-                      <div className="mt-1 font-semibold text-white">{formatMetric(row.energyToday, 2)} kWh</div>
-                    </div>
-                    <div className="rounded-2xl bg-slate-950/70 p-3">
-                      <div className="flex items-center gap-1.5 text-slate-500">
-                        <IconThermometer size={14} className="text-amber-400" />
-                        <span>Temp</span>
-                      </div>
-                      <div className="mt-1 font-semibold text-white">{row.temperature !== null ? `${formatMetric(row.temperature, 1)} °C` : '--'}</div>
-                    </div>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        </SectionCard>
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[0.86fr_1.14fr]">
-        <SectionCard
-          tone="data"
-          eyebrow="data sources"
-          title="5. Data — Nguồn dữ liệu thật & importer"
-          description="Khối cuối cho phần ingest và nền dữ liệu, tách khỏi luồng điều hành chính để màn hình đỡ rối."
-        >
-          <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-            <div className="space-y-3">
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-                <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Import status</div>
-                <div className="mt-2 text-2xl font-semibold text-white">{latestSourceSync?.status === 'success' ? 'READY' : latestSourceSync?.status === 'failed' ? 'FAILED' : 'IDLE'}</div>
-                <div className="mt-2 text-sm text-slate-400">
-                  {latestSourceSync ? `${latestSourceSync.records_processed} dòng • ${formatDateTime(latestSourceSync.finished_at || latestSourceSync.started_at)}` : 'Chưa có phiên import nào'}
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-                <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Weather feed mới nhất</div>
-                <div className="mt-2 text-xl font-semibold text-white">{latestWeather?.station_name || 'Chưa có dữ liệu'}</div>
-                <div className="mt-2 text-sm text-slate-400">
-                  {latestWeather ? `${formatMetric(latestWeather.solar_radiation, 1)} W/m² • ${formatMetric(latestWeather.temperature, 1)} °C` : 'Import EnergyData để nạp lớp dữ liệu nền'}
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-                <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Connector backlog</div>
-                <div className="mt-2 text-xl font-semibold text-white">{sourceConnectors.length}</div>
-                <div className="mt-2 text-sm text-slate-400">{connectorReadiness} connector skeleton đang chờ credential / API access thật</div>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {showSourceTools && (
-                <form onSubmit={handleImportEnergyData} className="rounded-3xl border border-emerald-400/15 bg-emerald-400/5 p-4">
-                  <div className="text-sm font-medium text-white">Import EnergyData ngay từ dashboard</div>
-                  <div className="mt-1 text-sm text-slate-400">Dùng URL thật là tiện nhất. File path vẫn hỗ trợ cho backend/container khi cần nạp dữ liệu cục bộ.</div>
-                  <div className="mt-4 space-y-3">
-                    <input
-                      className="input-control w-full"
-                      placeholder="URL CSV/ZIP extract của EnergyData"
-                      value={importForm.source_url}
-                      onChange={(e) => setImportForm((prev) => ({ ...prev, source_url: e.target.value }))}
-                    />
-
-                    <input
-                      className="input-control w-full"
-                      placeholder="File path nội bộ backend (advanced)"
-                      value={importForm.file_path}
-                      onChange={(e) => setImportForm((prev) => ({ ...prev, file_path: e.target.value }))}
-                    />
-                    <div className="flex flex-col gap-3 md:flex-row">
-                      <input
-                        className="input-control md:w-40"
-                        placeholder="Limit"
-                        value={importForm.limit}
-                        onChange={(e) => setImportForm((prev) => ({ ...prev, limit: e.target.value }))}
-                      />
-                      <button
-                        type="submit"
-                        disabled={importLoading}
-                        className="btn-success disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {importLoading ? 'Đang import...' : 'Chạy importer'}
-                      </button>
-                    </div>
-                    {importFeedback ? <div className="text-sm text-emerald-200">{importFeedback}</div> : null}
-                  </div>
-                </form>
-              )}
-
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Connector roadmap</div>
-                    <div className="mt-1 text-sm text-slate-400">Chuẩn hoá đường nối trước khi gắn credential thật</div>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {sourceConnectors.map((connector) => (
-                    <div key={connector.source_name} className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="font-medium text-white">{connector.source_name}</div>
-                        <div className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-xs text-amber-300">{connector.implementation_status}</div>
-                      </div>
-                      <div className="mt-2 text-sm text-slate-400">{connector.auth_requirements.required}</div>
-                      <div className="mt-2 text-xs text-cyan-300">{connector.auth_requirements.portal}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </SectionCard>
-
-        <SectionCard
-          eyebrow="weather pulse"
-          title="Lớp dữ liệu nền thời tiết / bức xạ"
-          description="Dùng để làm map context, baseline estimation và chuẩn bị cho model dữ liệu thật theo vùng."
-        >
-          <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="space-y-3">
-              {weatherObservations.length === 0 ? (
-                <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-5 text-sm text-slate-400">Chưa có weather observation. Mở Data Sources để chạy import EnergyData.</div>
-              ) : weatherObservations.map((item) => (
-                <div key={item.id} className="rounded-3xl border border-white/10 bg-white/5 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="font-medium text-white">{item.station_name || item.station_id || 'Unnamed station'}</div>
-                      <div className="mt-1 text-sm text-slate-400">{formatDateTime(item.observed_at)} • {item.source_name}</div>
-                    </div>
-                    <div className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-300">
-                      {formatMetric(item.solar_radiation, 1)} W/m²
-                    </div>
-                  </div>
-                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-                    <div className="rounded-2xl bg-slate-950/70 p-3">
-                      <div className="text-slate-500">Temp</div>
-                      <div className="mt-1 font-semibold text-white">{formatMetric(item.temperature, 1)} °C</div>
-                    </div>
-                    <div className="rounded-2xl bg-slate-950/70 p-3">
-                      <div className="text-slate-500">Wind</div>
-                      <div className="mt-1 font-semibold text-white">{formatMetric(item.wind_speed, 1)} m/s</div>
-                    </div>
-                    <div className="rounded-2xl bg-slate-950/70 p-3">
-                      <div className="text-slate-500">Pressure</div>
-                      <div className="mt-1 font-semibold text-white">{formatMetric(item.pressure, 1)}</div>
-                    </div>
-                    <div className="rounded-2xl bg-slate-950/70 p-3">
-                      <div className="text-slate-500">Coords</div>
-                      <div className="mt-1 font-semibold text-white">{item.latitude !== null && item.longitude !== null && item.latitude !== undefined && item.longitude !== undefined ? `${formatMetric(item.latitude, 2)}, ${formatMetric(item.longitude, 2)}` : '--'}</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="space-y-3">
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-                <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Sync logs</div>
-                <div className="mt-3 space-y-3">
-                  {sourceSyncLogs.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/70 p-4 text-sm text-slate-400">Chưa có sync log.</div>
-                  ) : sourceSyncLogs.map((log) => (
-                    <div key={log.id} className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="font-medium text-white">{log.source_name}</div>
-                        <div className={`rounded-full px-3 py-1 text-xs ${log.status === 'success' ? 'bg-emerald-400/10 text-emerald-300' : log.status === 'failed' ? 'bg-rose-400/10 text-rose-300' : 'bg-amber-400/10 text-amber-300'}`}>
-                          {log.status}
-                        </div>
-                      </div>
-                      <div className="mt-2 text-sm text-slate-400">{log.records_processed} dòng • {formatDateTime(log.finished_at || log.started_at)}</div>
-                      <div className="mt-2 text-xs text-slate-500">{log.message || 'Không có message'}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </SectionCard>
-      </section>
-
-      <SectionCard
-        tone="ops"
-        eyebrow="operations table"
-        title="Bảng điều hành toàn mạng"
-        description="Phiên bản gọn để nhìn toàn bộ site theo vùng, trạng thái và công suất hiện tại trên cùng một màn hình."
-      >
-        <div className="mb-3"><span className="section-step">BOOTSTRAP-LIKE TABLE</span></div>
-        <div className="table-shell overflow-x-auto">
-          <table className="min-w-full divide-y divide-white/10 text-sm">
-            <thead>
-              <tr className="table-head text-left">
-                <th className="px-3 py-3 font-medium">Site</th>
-                <th className="px-3 py-3 font-medium">Khu vực</th>
-                <th className="px-3 py-3 font-medium">Cụm</th>
-                <th className="px-3 py-3 font-medium">Trạng thái</th>
-                <th className="px-3 py-3 font-medium">Power</th>
-                <th className="px-3 py-3 font-medium">Energy today</th>
-                <th className="px-3 py-3 font-medium">Tác vụ</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {filteredSiteRows.map((row) => {
-                const meta = statusMeta(row.health)
-                return (
-                  <tr key={row.site.id} className="table-row-striped transition hover:bg-cyan-400/[0.08]">
-                    <td className="px-3 py-4">
-                      <button type="button" className="text-left" onClick={() => setSelectedSite(row.site)}>
-                        <div className="font-medium text-white">{row.site.name}</div>
-                        <div className="text-slate-400">{row.site.location || 'Chưa có vị trí'}</div>
-                      </button>
-                    </td>
-                    <td className="px-3 py-4 text-slate-300">{row.region}</td>
-                    <td className="px-3 py-4 text-slate-300">{row.cluster}</td>
-                    <td className="px-3 py-4">
-                      <span className={`inline-flex rounded-full px-3 py-1 text-xs ${meta.pill}`}>{meta.label}</span>
-                    </td>
-                    <td className="px-3 py-4">
-                      <div className="flex items-center gap-1.5 text-white">
-                        <IconBolt size={14} className="text-cyan-400" />
-                        <span>{formatMetric(row.currentPower)} W</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-4">
-                      <div className="flex items-center gap-1.5 text-white">
-                        <IconBattery size={14} className="text-emerald-400" />
-                        <span>{formatMetric(row.energyToday, 2)} kWh</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-4">
-                      <button type="button" onClick={() => handleDeleteSite(row.site.id)} className="flex items-center gap-1.5 rounded-full border border-rose-400/25 bg-rose-400/10 px-3 py-1.5 text-xs font-medium text-rose-200 transition hover:bg-rose-400/20">
-                        <IconTrash size={12} />
-                        <span>Xoá</span>
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </SectionCard>
-        </>
+      {/* Site Detail Modal */}
+      {selectedSite && (
+        <SiteDetailPanel
+          site={selectedSite}
+          latest={latestBySite[selectedSite.id] ?? null}
+          health={getSiteHealth(selectedSite, latestBySite[selectedSite.id] ?? null)}
+          historyPoints={historyPoints}
+          onClose={() => setSelectedSite(null)}
+        />
       )}
     </div>
   )
