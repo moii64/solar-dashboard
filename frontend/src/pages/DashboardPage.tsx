@@ -433,7 +433,7 @@ export default function DashboardPage() {
                   <IconArrowRight size={12} />
                 </button>
               </div>
-            </section>
+            </div>
 
             {/* Site List */}
             <section>
