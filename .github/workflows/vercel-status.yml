@@ -1,0 +1,17 @@
+name: Vercel Status Check
+
+on:
+  push:
+    branches: [master, feature/design-c-hybrid]
+  workflow_dispatch:
+
+jobs:
+  check-vercel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Vercel Deployment Status
+        run: |
+          echo "Checking latest Vercel deployment..."
+          curl -s -X GET "https://api.vercel.com/v6/deployments?project=solar-dashboard&teamId=mmax64s" \
+            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+            | jq '.deployments[0] | {url, state, ready, createdAt}'
