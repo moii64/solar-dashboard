@@ -189,13 +189,13 @@ function NavPill({
 }
 
 // Empty State Component
-function EmptyState({ message }: { message: string }) {
+function EmptyState({ message, compact = false }: { message: string; compact?: boolean }) {
   return (
-    <div className="flex flex-col items-center justify-center h-full py-12 animate-fade-in">
-      <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mb-4">
-        <IconSun size={32} className="text-slate-600" />
+    <div className={`flex flex-col items-center justify-center h-full animate-fade-in ${compact ? 'py-8' : 'py-12'}`}>
+      <div className={`${compact ? 'w-12 h-12' : 'w-16 h-16'} rounded-2xl bg-slate-800/50 flex items-center justify-center mb-4`}>
+        <IconSun size={compact ? 24 : 32} className="text-slate-600" />
       </div>
-      <p className="text-slate-500 text-sm">{message}</p>
+      <p className="text-slate-500 text-sm text-center max-w-xs">{message}</p>
     </div>
   )
 }
@@ -312,6 +312,7 @@ export default function DashboardPage() {
   const healthyCount = siteRows.filter(r => r.health === 'healthy').length
   const warningCount = siteRows.filter(r => r.health === 'warning').length
   const totalPower = (statsOverview?.total_power || 0) / 1000
+  const hasHistoryData = historyPoints.length > 0
 
   return (
     <div className="min-h-screen animate-fade-in">
@@ -470,9 +471,14 @@ export default function DashboardPage() {
                       />
                     ))
                   ) : (
-                    <EmptyState message="Chưa có site nào hoạt động" />
+                    <EmptyState compact message="Chưa có site nào hoạt động" />
                   )}
                 </div>
+                {siteRows.length <= 1 && (
+                  <div className="border-t border-dark-border p-4 bg-slate-900/30">
+                    <p className="text-xs text-slate-400">Gợi ý: thêm site mới để theo dõi theo cụm và hiển thị heatmap đầy đủ.</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -496,10 +502,21 @@ export default function DashboardPage() {
                   </select>
                 </div>
               </div>
-              <div className="dc-chart-area rounded-xl" style={{ height: '280px' }}>
-                <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-500"><div className="animate-pulse">Đang tải biểu đồ...</div></div>}>
-                  <Chart data={historyPoints} />
-                </Suspense>
+              <div className="dc-chart-area rounded-xl" style={{ height: hasHistoryData ? '280px' : '200px' }}>
+                {hasHistoryData ? (
+                  <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-500"><div className="animate-pulse">Đang tải biểu đồ...</div></div>}>
+                    <Chart data={historyPoints} />
+                  </Suspense>
+                ) : (
+                  <EmptyState compact message="Chưa có dữ liệu lịch sử. Hệ thống sẽ tự hiển thị biểu đồ khi có thêm telemetry." />
+                )}
+              </div>
+            </div>
+
+            <div className="dc-card p-4 sm:p-5 bg-slate-900/30">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <p className="text-sm text-slate-300">Layout đã tối ưu cho trạng thái ít dữ liệu để màn hình gọn và cân đối hơn.</p>
+                <span className="text-xs text-slate-500">UI Polish Pass · Empty-state balancing</span>
               </div>
             </div>
           </div>
