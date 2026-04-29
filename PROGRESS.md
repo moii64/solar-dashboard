@@ -166,12 +166,15 @@ Cập nhật gần nhất: 2026-04-28 06:57 (GMT+7)
 - [ ] Cấu hình SSL certificate cho backend Render
 - [ ] Map domain `api.solarvn.com` → backend Render
 - [ ] Map domain `app.solarvn.com` → frontend Vercel
-- [ ] Update CORS settings cho custom domain
+- [x] Update CORS settings cho custom domain
 - [ ] Test end-to-end với production domain
+- **Status:** Blocked — chưa có quyền quản lý DNS `solarvn.com`; tiếp tục dùng `https://solar-dashboard-xs4b.onrender.com`.
 - **Deadline:** 2026-05-03
 - **Owner:** DevOps team
 
 ### 4. Tích hợp MQTT broker thực tế (Priority: High)
+- [x] Chuẩn bị production guide cho MQTT broker/Mosquitto
+- [x] Chuẩn bị script smoke test MQTT → backend latest endpoint
 - [ ] Deploy MQTT broker (Mosquitto) lên VPS/cloud
 - [ ] Cấu hình authentication + TLS cho MQTT
 - [ ] Test ingest telemetry từ gateway/device thật
