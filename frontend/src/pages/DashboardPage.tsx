@@ -518,7 +518,7 @@ export default function DashboardPage() {
                   </select>
                 </div>
               </div>
-              <div className="dc-chart-area rounded-xl" style={{ height: hasHistoryData ? '280px' : '140px' }}>
+              <div className="dc-chart-area rounded-xl" style={{ height: hasHistoryData ? '280px' : '128px' }}>
                 {hasHistoryData ? (
                   <div key={chartFadeTick} className="h-full animate-fade-in">
                     <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-500"><div className="animate-pulse">Đang tải biểu đồ...</div></div>}>
@@ -526,15 +526,22 @@ export default function DashboardPage() {
                     </Suspense>
                   </div>
                 ) : (
-                  <EmptyState compact message="Chưa có dữ liệu lịch sử. Hệ thống sẽ tự hiển thị biểu đồ khi có thêm telemetry." />
+                  <div className="h-full grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 animate-fade-in">
+                    <div className="sm:col-span-2 flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950/20 px-4">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                        <IconActivity size={20} className="text-emerald-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-200">Đang chờ dữ liệu lịch sử</p>
+                        <p className="text-xs text-slate-500 mt-1">Telemetry mới sẽ tự đổ vào biểu đồ sau khi gateway gửi dữ liệu.</p>
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 flex flex-col justify-center">
+                      <p className="text-[10px] uppercase tracking-wide text-slate-500">Realtime</p>
+                      <p className="mt-1 text-lg font-semibold text-emerald-300">{realtimeState === 'live' ? 'Live' : 'Standby'}</p>
+                    </div>
+                  </div>
                 )}
-              </div>
-            </div>
-
-            <div className="dc-card-interactive p-3 sm:p-4 bg-slate-900/30">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
-                <p className="text-xs sm:text-sm text-slate-400">Layout đã tối ưu cho trạng thái ít dữ liệu.</p>
-                <span className="text-[10px] sm:text-xs text-slate-500 whitespace-nowrap">UI Polish · v1.2</span>
               </div>
             </div>
           </div>
