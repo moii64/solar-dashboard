@@ -383,7 +383,7 @@ export default function DashboardPage() {
             </div>
           </div>
         ) : (
-          <div className="max-w-7xl mx-auto space-y-8 pb-12">
+          <div className="max-w-7xl mx-auto space-y-6 pb-8">
             {/* Stats Grid - Modern 4-col layout */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
@@ -428,7 +428,7 @@ export default function DashboardPage() {
             {/* Map + Sites Row - Improved grid */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
               {/* Map */}
-              <div className="xl:col-span-2 dc-card-interactive p-4 sm:p-6 animate-slide-up" style={{ animationDelay: '200ms' }}>
+              <div className="xl:col-span-2 dc-card-interactive p-3 sm:p-5 animate-slide-up" style={{ animationDelay: '200ms' }}>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
                   <div className="flex items-center gap-3">
                     <h3 className="font-semibold text-white text-lg">Vị trí Sites</h3>
@@ -445,7 +445,7 @@ export default function DashboardPage() {
                     </span>
                   </div>
                 </div>
-                <div className="map-wrapper rounded-xl overflow-hidden" style={{ height: '350px' }}>
+                <div className="map-wrapper rounded-xl overflow-hidden" style={{ height: siteRows.length > 2 ? '350px' : '280px' }}>
                   <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-500"><div className="animate-spin w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center"><IconMap size={20} /></div></div>}>
                     <MapComponent 
                       siteRows={siteRows}
@@ -464,7 +464,7 @@ export default function DashboardPage() {
                     <span className="px-2 py-1 rounded-lg bg-emerald-500/10 text-xs text-emerald-400">{siteRows.length} sites</span>
                   </div>
                 </div>
-                <div className="max-h-[420px] overflow-y-auto scrollbar-thin">
+                <div className="max-h-[420px] overflow-y-auto scrollbar-thin" style={{ maxHeight: siteRows.length <= 2 ? '200px' : '420px' }}>
                   {siteRows.length > 0 ? (
                     siteRows.map((row, index) => (
                       <SiteListItem
@@ -481,15 +481,25 @@ export default function DashboardPage() {
                   )}
                 </div>
                 {siteRows.length <= 1 && (
-                  <div className="border-t border-dark-border p-4 bg-slate-900/30">
-                    <p className="text-xs text-slate-400">Gợi ý: thêm site mới để theo dõi theo cụm và hiển thị heatmap đầy đủ.</p>
+                  <div className="border-t border-dark-border p-3 bg-slate-900/30 space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                        <p className="text-[10px] uppercase tracking-wide text-slate-500">Online</p>
+                        <p className="mt-1 text-lg font-semibold text-emerald-300">{healthyCount}</p>
+                      </div>
+                      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                        <p className="text-[10px] uppercase tracking-wide text-slate-500">Công suất</p>
+                        <p className="mt-1 text-lg font-semibold text-cyan-300">{totalPower.toFixed(1)} MW</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-500">Gợi ý: thêm site mới để theo dõi theo cụm và hiển thị heatmap đầy đủ.</p>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Chart Section - Improved */}
-            <div className="dc-card-interactive p-6 animate-slide-up" style={{ animationDelay: '400ms' }}>
+            <div className="dc-card-interactive p-3 sm:p-4 animate-slide-up" style={{ animationDelay: '400ms' }}>
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
@@ -508,7 +518,7 @@ export default function DashboardPage() {
                   </select>
                 </div>
               </div>
-              <div className="dc-chart-area rounded-xl" style={{ height: hasHistoryData ? '280px' : '160px' }}>
+              <div className="dc-chart-area rounded-xl" style={{ height: hasHistoryData ? '280px' : '140px' }}>
                 {hasHistoryData ? (
                   <div key={chartFadeTick} className="h-full animate-fade-in">
                     <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-500"><div className="animate-pulse">Đang tải biểu đồ...</div></div>}>
@@ -521,10 +531,10 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="dc-card-interactive p-3 sm:p-4 sm:p-5 bg-slate-900/30">
+            <div className="dc-card-interactive p-3 sm:p-4 bg-slate-900/30">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
-                <p className="text-xs sm:text-sm text-slate-300">Layout đã tối ưu cho trạng thái ít dữ liệu để màn hình gọn và cân đối hơn.</p>
-                <span className="text-[10px] sm:text-xs text-slate-500 whitespace-nowrap">UI Polish Pass · Empty-state balancing</span>
+                <p className="text-xs sm:text-sm text-slate-400">Layout đã tối ưu cho trạng thái ít dữ liệu.</p>
+                <span className="text-[10px] sm:text-xs text-slate-500 whitespace-nowrap">UI Polish · v1.2</span>
               </div>
             </div>
           </div>
