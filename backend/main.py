@@ -49,6 +49,8 @@ MQTT_TOPIC = os.getenv("MQTT_TOPIC", "solar/inverters/#")
 MQTT_USERNAME = os.getenv("MQTT_USERNAME")
 MQTT_PASSWORD = os.getenv("MQTT_PASSWORD")
 MQTT_CLIENT_ID = os.getenv("MQTT_CLIENT_ID", "solar-dashboard-backend")
+MQTT_TLS_ENABLED = os.getenv("MQTT_TLS_ENABLED", "0") == "1"
+MQTT_TLS_INSECURE = os.getenv("MQTT_TLS_INSECURE", "0") == "1"
 MQTT_AUTO_CREATE_INVERTER = os.getenv("MQTT_AUTO_CREATE_INVERTER", "1") == "1"
 logger = logging.getLogger("solar-backend")
 MQTT_CONNECTION_STATE = {"connected": False}
@@ -613,6 +615,9 @@ def start_mqtt_consumer(event_loop: asyncio.AbstractEventLoop):
     client.enable_logger(logger)
     if MQTT_USERNAME:
         client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD or "")
+    if MQTT_TLS_ENABLED:
+        client.tls_set()
+        client.tls_insecure_set(MQTT_TLS_INSECURE)
 
     logger.info(
         "Starting MQTT consumer client_id=%s broker=%s:%s topic=%s",
@@ -798,6 +803,7 @@ def healthz(db: Session = Depends(get_db)):
         "mqtt_consumer_enabled": ENABLE_MQTT_CONSUMER,
         "mqtt_topic": MQTT_TOPIC if ENABLE_MQTT_CONSUMER else None,
         "mqtt_connected": MQTT_CONNECTION_STATE["connected"] if ENABLE_MQTT_CONSUMER else None,
+        "mqtt_tls_enabled": MQTT_TLS_ENABLED if ENABLE_MQTT_CONSUMER else None,
     }
 
 

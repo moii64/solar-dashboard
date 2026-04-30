@@ -28,6 +28,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Publish MQTT telemetry and verify backend latest reading")
     parser.add_argument("--broker", required=True)
     parser.add_argument("--port", type=int, default=1883)
+    parser.add_argument("--tls", action="store_true", help="Enable TLS for MQTT connection")
     parser.add_argument("--username", required=True)
     parser.add_argument("--password", required=True)
     parser.add_argument("--backend", default="https://solar-dashboard-xs4b.onrender.com")
@@ -59,6 +60,8 @@ def find_or_create_inverter(backend: str, name: str) -> int:
 def publish_payload(args: argparse.Namespace, inverter_id: int) -> None:
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="solar-dashboard-smoke-test")
     client.username_pw_set(args.username, args.password)
+    if args.tls:
+        client.tls_set()
     client.connect(args.broker, args.port, keepalive=30)
 
     payload = {
