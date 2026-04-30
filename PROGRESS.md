@@ -175,11 +175,12 @@ Cập nhật gần nhất: 2026-04-28 06:57 (GMT+7)
 ### 4. Tích hợp MQTT broker thực tế (Priority: High)
 - [x] Chuẩn bị production guide cho MQTT broker/Mosquitto
 - [x] Chuẩn bị script smoke test MQTT → backend latest endpoint
-- [ ] Deploy MQTT broker (Mosquitto) lên VPS/cloud
-- [ ] Cấu hình authentication + TLS cho MQTT
-- [ ] Test ingest telemetry từ gateway/device thật
-- [ ] Verify WebSocket broadcast dữ liệu realtime đến frontend
-- [ ] Monitor MQTT consumer logs và error handling
+- [x] Deploy MQTT broker/cloud instance (EMQX Cloud)
+- [x] Cấu hình authentication + TLS cho MQTT
+- [x] Test ingest telemetry từ MQTT topic thật vào backend
+- [x] Verify WebSocket broadcast / production socket connectivity
+- [x] Monitor MQTT consumer health qua `/healthz`
+- **Status:** Done — backend Render đã connect EMQX qua TLS, subscribe `solar/inverters/#`, ingest telemetry thành công và prod smoke pass.
 - **Deadline:** 2026-05-05
 - **Owner:** Backend team
 

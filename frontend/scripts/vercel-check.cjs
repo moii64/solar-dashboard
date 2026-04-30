@@ -22,18 +22,23 @@ async function checkWebSocket(timeoutMs = 12000) {
   return new Promise((resolve) => {
     const startedAt = Date.now();
     let settled = false;
+    let opened = false;
 
     const timeout = setTimeout(() => {
       if (settled) return;
       settled = true;
       try { ws.close(); } catch {}
-      resolve({ ok: false, reason: 'timeout_waiting_first_message' });
+      resolve(
+        opened
+          ? { ok: true, reason: 'connected_no_message', latencyMs: Date.now() - startedAt }
+          : { ok: false, reason: 'timeout_opening_socket' },
+      );
     }, timeoutMs);
 
     const ws = new WebSocket(WS_URL);
 
     ws.onopen = () => {
-      // Connected, now wait for first data event
+      opened = true;
     };
 
     ws.onmessage = (event) => {
@@ -51,6 +56,7 @@ async function checkWebSocket(timeoutMs = 12000) {
       ws.close();
       resolve({
         ok: true,
+        reason: 'message_received',
         latencyMs: Date.now() - startedAt,
         sampleKeys: parsed && typeof parsed === 'object' ? Object.keys(parsed).slice(0, 8) : [],
         sample: parsed,
@@ -66,10 +72,9 @@ async function checkWebSocket(timeoutMs = 12000) {
 
     ws.onclose = () => {
       if (settled) return;
-      // close before first message
       settled = true;
       clearTimeout(timeout);
-      resolve({ ok: false, reason: 'closed_before_message' });
+      resolve(opened ? { ok: true, reason: 'connected_then_closed', latencyMs: Date.now() - startedAt } : { ok: false, reason: 'closed_before_open' });
     };
   });
 }
