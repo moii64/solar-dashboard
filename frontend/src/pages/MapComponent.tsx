@@ -148,6 +148,7 @@ export default function MapComponent({ siteRows, onSiteClick, selectedSiteId }: 
       container: mapContainer.current,
       style: {
         version: 8,
+        glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
         sources: {
           'carto-dark': {
             type: 'raster',
