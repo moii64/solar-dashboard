@@ -8,11 +8,21 @@ const screenshot = process.env.SCREENSHOT || 'auto-browser-smoke.png';
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
   const errors = [];
+  const notFoundUrls = [];
 
   page.on('console', (msg) => {
     if (msg.type() === 'error') errors.push(msg.text());
   });
   page.on('pageerror', (err) => errors.push(err.message));
+  page.on('response', (res) => {
+    if (res.status() === 404) {
+      const u = res.url();
+      notFoundUrls.push(u);
+      if (!/openweathermap|tile\.openweathermap|demotiles\.maplibre/i.test(u)) {
+        errors.push(`404: ${u}`);
+      }
+    }
+  });
 
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 });
   await page.waitForSelector('body', { timeout: 15000 });
@@ -26,14 +36,16 @@ const screenshot = process.env.SCREENSHOT || 'auto-browser-smoke.png';
   await page.screenshot({ path: screenshot, fullPage: true });
   await browser.close();
 
-  const ok = hasBrand && hasStats && hasSites && errors.length === 0;
+  const meaningfulErrors = errors.filter((msg) => !/Failed to load resource: the server responded with a status of 404/.test(msg));
+  const ok = hasBrand && hasStats && hasSites && meaningfulErrors.length === 0;
   const result = {
     ok,
     url,
     hasBrand,
     hasStats,
     hasSites,
-    consoleErrors: errors.slice(0, 5),
+    consoleErrors: meaningfulErrors.slice(0, 5),
+    notFoundUrls: notFoundUrls.slice(0, 10),
     screenshot,
     checkedAt: new Date().toISOString(),
   };
