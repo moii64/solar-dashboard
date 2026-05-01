@@ -115,6 +115,11 @@ function SiteListItem({
   onClick: () => void
   index?: number
 }) {
+  const lastSeen = latest?.timestamp ? new Date(latest.timestamp) : null
+  const isStaleSite = lastSeen ? Date.now() - lastSeen.getTime() > 5 * 60 * 1000 : true
+  const lastSeenLabel = lastSeen
+    ? new Intl.RelativeTimeFormat('vi', { numeric: 'auto' }).format(Math.round((lastSeen.getTime() - Date.now()) / 60000), 'minute')
+    : 'chưa có dữ liệu'
   const healthColors = {
     healthy: 'from-emerald-400 to-cyan-500',
     warning: 'from-amber-400 to-orange-500',
@@ -152,7 +157,9 @@ function SiteListItem({
         </div>
         <div className="flex items-center justify-between mt-2">
           <span className={`text-xs font-medium ${healthText[health]} transition-all duration-200 group-hover:scale-105 transform origin-left`}>{latest?.power ? `${latest.power} kW` : '--'}</span>
-          <span className="text-xs text-slate-500 group-hover:text-slate-400 transition-colors">{efficiency.toFixed(1)}%</span>
+          <span className={`text-xs transition-colors ${isStaleSite ? 'text-amber-400' : 'text-slate-500 group-hover:text-slate-400'}`}>
+            {isStaleSite ? `cũ ${lastSeenLabel}` : efficiency.toFixed(1) + '%'}
+          </span>
         </div>
         <div className="dc-power-bar mt-1 overflow-hidden">
           <div 
@@ -212,7 +219,7 @@ export default function DashboardPage() {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
   const selectedSiteIdRef = useRef<number | null>(null)
   const [selectedHours, setSelectedHours] = useState<number>(24)
-  const [filterStatus, setFilterStatus] = useState<'all' | 'online' | 'warning' | 'critical'>('all')
+  const [filterStatus, setFilterStatus] = useState<'all' | 'healthy' | 'warning' | 'critical'>('all')
   const [sortBy, setSortBy] = useState<'name' | 'power' | 'status'>('power')
 
   // Helper functions
@@ -281,6 +288,18 @@ export default function DashboardPage() {
     }
   }
 
+  const [countdown, setCountdown] = useState(30)
+
+  const refreshDashboard = async () => {
+    await fetchStatsOverview()
+    if (sites.length > 0) {
+      await fetchLatestForSites(sites)
+    }
+    if (selectedSite) {
+      await fetchHistory(selectedSite.id, selectedHours)
+    }
+  }
+
   useEffect(() => {
     fetchSites()
     fetchStatsOverview()
@@ -291,6 +310,21 @@ export default function DashboardPage() {
       fetchLatestForSites(sites)
     }
   }, [sites])
+
+  // Auto-refresh polling: refresh data every 30s, update visible countdown every second.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          void refreshDashboard()
+          return 30
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [sites, selectedSite, selectedHours])
 
   useEffect(() => {
     if (selectedSite) {
@@ -396,10 +430,15 @@ export default function DashboardPage() {
               <span className="text-xs font-medium text-emerald-400">Live</span>
             </div>
             <button 
-              className="w-9 h-9 rounded-lg bg-white/[0.05] border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.1] hover:border-white/20 transition-all duration-300 active:scale-95"
-              onClick={() => fetchStatsOverview()}
+              className="h-9 rounded-lg bg-white/[0.05] border border-white/10 flex items-center gap-2 px-3 text-slate-400 hover:text-white hover:bg-white/[0.1] hover:border-white/20 transition-all duration-300 active:scale-95"
+              onClick={() => {
+                void refreshDashboard()
+                setCountdown(30)
+              }}
+              title={`Tự làm mới sau ${countdown}s`}
             >
-              <IconRefresh size={20} />
+              <IconRefresh size={18} />
+              <span className="text-xs font-medium hidden sm:inline">{countdown}s</span>
             </button>
             <button className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-white font-semibold text-sm transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/20 active:scale-95">
               M
