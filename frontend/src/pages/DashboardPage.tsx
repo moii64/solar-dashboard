@@ -212,6 +212,8 @@ export default function DashboardPage() {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
   const selectedSiteIdRef = useRef<number | null>(null)
   const [selectedHours, setSelectedHours] = useState<number>(24)
+  const [filterStatus, setFilterStatus] = useState<'all' | 'online' | 'warning' | 'critical'>('all')
+  const [sortBy, setSortBy] = useState<'name' | 'power' | 'status'>('power')
 
   // Helper functions
   const deriveRegion = (site: Site) => {
@@ -309,6 +311,29 @@ export default function DashboardPage() {
       return { site, latest, region, cluster, health, currentPower, energyToday, temperature }
     })
   }, [sites, latestBySite])
+
+  // Filter + Sort
+  const filteredAndSorted = useMemo(() => {
+    let filtered = siteRows
+    
+    // Apply filter
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(r => r.health === filterStatus)
+    }
+    
+    // Apply sort
+    const sorted = [...filtered]
+    if (sortBy === 'power') {
+      sorted.sort((a, b) => (b.currentPower || 0) - (a.currentPower || 0))
+    } else if (sortBy === 'status') {
+      const healthOrder = { healthy: 0, warning: 1, critical: 2 }
+      sorted.sort((a, b) => healthOrder[a.health] - healthOrder[b.health])
+    } else if (sortBy === 'name') {
+      sorted.sort((a, b) => a.site.name.localeCompare(b.site.name))
+    }
+    
+    return sorted
+  }, [siteRows, filterStatus, sortBy])
 
   const healthyCount = siteRows.filter(r => r.health === 'healthy').length
   const warningCount = siteRows.filter(r => r.health === 'warning').length
@@ -501,14 +526,37 @@ export default function DashboardPage() {
               {/* Site List - Improved */}
               <div className="dc-card-interactive animate-slide-up" style={{ animationDelay: '300ms' }}>
                 <div className="p-5 border-b border-dark-border">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-white">Sites hoạt động</h3>
-                    <span className="px-2 py-1 rounded-lg bg-emerald-500/10 text-xs text-emerald-400">{siteRows.length} sites</span>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="font-semibold text-white">Sites hoạt động</h3>
+                      <p className="text-xs text-slate-500 mt-0.5">{filteredAndSorted.length} sites</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <select
+                        className="dc-input w-28 bg-dark-surface border-dark-border text-slate-300 rounded-xl px-3 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500/30 transition-all duration-200"
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value as any)}
+                      >
+                        <option value="all">Tất cả</option>
+                        <option value="healthy">Healthy</option>
+                        <option value="warning">Warning</option>
+                        <option value="critical">Critical</option>
+                      </select>
+                      <select
+                        className="dc-input w-28 bg-dark-surface border-dark-border text-slate-300 rounded-xl px-3 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500/30 transition-all duration-200"
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as any)}
+                      >
+                        <option value="power">Công suất</option>
+                        <option value="status">Trạng thái</option>
+                        <option value="name">Tên</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
-                <div className="max-h-[420px] overflow-y-auto scrollbar-thin" style={{ maxHeight: siteRows.length <= 2 ? '200px' : '420px' }}>
-                  {siteRows.length > 0 ? (
-                    siteRows.map((row, index) => (
+                <div className="max-h-[420px] overflow-y-auto scrollbar-thin" style={{ maxHeight: filteredAndSorted.length <= 2 ? '200px' : '420px' }}>
+                  {filteredAndSorted.length > 0 ? (
+                    filteredAndSorted.map((row, index) => (
                       <SiteListItem
                         key={row.site.id}
                         site={row.site}
@@ -519,7 +567,7 @@ export default function DashboardPage() {
                       />
                     ))
                   ) : (
-                    <EmptyState compact message="Chưa có site nào hoạt động" />
+                    <EmptyState compact message="Không có site nào phù hợp" />
                   )}
                 </div>
                 {siteRows.length <= 1 && (
