@@ -86,7 +86,7 @@ function StatCard({
       className="dc-stat-card dc-card-interactive group animate-slide-up"
       style={{ animationDelay: `${delay}ms` }}
     >
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between mb-3 sm:mb-4">
         <div className="dc-stat-icon group-hover:scale-110 transition-transform duration-300">{icon}</div>
         {change && (
           <span className={`text-xs font-medium px-2 py-1 rounded transition-all duration-300 ${changeType === 'up' ? 'bg-emerald-500/15 text-emerald-400 group-hover:bg-emerald-500/25' : 'bg-rose-500/15 text-rose-400 group-hover:bg-rose-500/25'}`}>
@@ -94,9 +94,9 @@ function StatCard({
           </span>
         )}
       </div>
-      <div className="text-4xl font-bold text-white dc-glow-text mb-1">{value}</div>
+      <div className="text-3xl sm:text-4xl font-bold text-white dc-glow-text mb-1">{value}</div>
       <div className="text-sm text-slate-500">{title}</div>
-      {subtitle && <div className="flex items-center gap-2 mt-3 text-xs text-slate-500">{subtitle}</div>}
+      {subtitle && <div className="flex items-center gap-2 mt-2 sm:mt-3 text-xs text-slate-500">{subtitle}</div>}
     </div>
   )
 }
@@ -384,8 +384,8 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="max-w-7xl mx-auto space-y-6 pb-8">
-            {/* Stats Grid - Modern 4-col layout */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Stats Grid - Mobile: 2-col compact, Desktop: 4-col */}
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
 
               <StatCard
                 icon={<IconBolt size={24} className="text-emerald-400" />}
@@ -446,6 +446,8 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div className="map-wrapper rounded-xl overflow-hidden" style={{ height: siteRows.length > 2 ? '350px' : '280px' }}>
+                  {/* Mobile: slightly shorter map */}
+                  <style>{`@media(max-width:639px){.map-wrapper{height:220px !important}}`}</style>
                   <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-500"><div className="animate-spin w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center"><IconMap size={20} /></div></div>}>
                     <MapComponent 
                       siteRows={siteRows}
@@ -500,13 +502,13 @@ export default function DashboardPage() {
 
             {/* Chart Section - Improved */}
             <div className="dc-card-interactive p-3 sm:p-4 animate-slide-up" style={{ animationDelay: '400ms' }}>
-              <div className="flex items-center justify-between mb-5">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-5">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
                     <IconChart size={20} className="text-emerald-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-white text-lg">Công suất theo thời gian thực</h3>
+                    <h3 className="font-semibold text-white text-base sm:text-lg">Công suất theo thời gian thực</h3>
                     <p className="text-xs text-slate-500 mt-0.5">Cập nhật mỗi 15 giây</p>
                   </div>
                 </div>

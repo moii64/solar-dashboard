@@ -47,16 +47,42 @@ npx vercel --prod
 
 ---
 
-## 3) Domain mapping
+## 3) Domain mapping + SSL runbook (DNS-ready)
 
-## 3.1 Frontend domain
+### 3.1 Frontend domain
 - `app.solarvn.com` -> Vercel (CNAME `cname.vercel-dns.com`)
+- Verify bằng:
+```bash
+nslookup app.solarvn.com
+```
 
-## 3.2 Backend domain
+### 3.2 Backend domain
 - `api.solarvn.com` -> IP server backend (A record)
+- Nếu dùng cloud LB/reverse proxy, trỏ A record tới LB public IP.
+- Verify bằng:
+```bash
+nslookup api.solarvn.com
+```
 
-## 3.3 SSL
+### 3.3 SSL checklist
 - Bật HTTPS cho cả 2 domain (`app.solarvn.com`, `api.solarvn.com`)
+- Với backend tự host: cài cert Let's Encrypt qua Nginx/Caddy.
+- Với frontend Vercel: cert auto-managed sau khi DNS trỏ đúng.
+
+### 3.4 Smoke test sau khi map DNS
+```bash
+curl -I https://app.solarvn.com
+curl -I https://api.solarvn.com/healthz
+```
+Kỳ vọng:
+- `HTTP/2 200` (hoặc `301 -> 200`) cho app
+- `/healthz` trả `status=ok`
+
+### 3.5 Rollback nhanh
+- Giữ nguyên production fallback:
+  - Frontend: `https://solar-dashboard-rouge.vercel.app`
+  - Backend: `https://solar-dashboard-xs4b.onrender.com`
+- Nếu custom domain lỗi SSL/DNS: đổi env frontend về fallback backend rồi redeploy Vercel.
 
 ---
 
