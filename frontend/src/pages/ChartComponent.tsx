@@ -25,6 +25,35 @@ function formatMetric(value?: number | null, digits = 0) {
   }).format(value)
 }
 
+function SmartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null
+
+  const point = payload[0]?.payload || {}
+  const isOnline = point.is_online !== false
+
+  return (
+    <div className="min-w-[190px] rounded-2xl border border-white/10 bg-slate-950/95 p-3 shadow-2xl shadow-black/30 backdrop-blur-xl">
+      <div className="mb-2 text-xs text-slate-400">{new Date(label as string).toLocaleString('vi-VN')}</div>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-xs text-slate-500">Công suất</span>
+          <span className="font-semibold text-cyan-300">{formatMetric(point.power)} W</span>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-xs text-slate-500">Sản lượng</span>
+          <span className="font-semibold text-amber-300">{formatMetric(point.energy_today, 2)} kWh</span>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-xs text-slate-500">Trạng thái</span>
+          <span className={`text-xs font-semibold ${isOnline ? 'text-emerald-300' : 'text-rose-300'}`}>
+            {isOnline ? 'Online' : 'Offline'}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ChartComponent({ data }: ChartProps) {
   if (!data || data.length === 0) {
     return (
@@ -40,7 +69,7 @@ export default function ChartComponent({ data }: ChartProps) {
   }
 
   return (
-    <div className="transition-opacity duration-500 ease-out" style={{ width: '100%', height: 360 }}>
+    <ResponsiveContainer width="100%" height="100%">
       <LineChart data={data} margin={{ top: 10, right: 16, bottom: 0, left: -12 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#243041" />
         <XAxis
@@ -49,11 +78,7 @@ export default function ChartComponent({ data }: ChartProps) {
           stroke="#64748b"
         />
         <YAxis stroke="#64748b" />
-        <Tooltip
-          contentStyle={{ background: '#0f172a', borderRadius: '16px', border: '1px solid rgba(148,163,184,0.2)' }}
-          labelFormatter={(label) => new Date(label as string).toLocaleString('vi-VN')}
-          formatter={(value: number) => [`${formatMetric(value)} W`, 'Power']}
-        />
+        <Tooltip content={<SmartTooltip />} />
         <Line
           type="monotone"
           dataKey="power"
@@ -63,6 +88,6 @@ export default function ChartComponent({ data }: ChartProps) {
           activeDot={{ r: 5, fill: '#22d3ee' }}
         />
       </LineChart>
-    </div>
+    </ResponsiveContainer>
   )
 }

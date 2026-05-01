@@ -211,6 +211,7 @@ export default function DashboardPage() {
   const [realtimeState, setRealtimeState] = useState<RealtimeState>('connecting')
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
   const selectedSiteIdRef = useRef<number | null>(null)
+  const [selectedHours, setSelectedHours] = useState<number>(24)
 
   // Helper functions
   const deriveRegion = (site: Site) => {
@@ -269,9 +270,9 @@ export default function DashboardPage() {
     setLatestBySite(nextLatest)
   }
 
-  const fetchHistory = async (id: number) => {
+  const fetchHistory = async (id: number, hours: number = selectedHours) => {
     try {
-      const resp = await axios.get(`${API_BASE}/stats/history?inverter_id=${id}`)
+      const resp = await axios.get(`${API_BASE}/stats/history?inverter_id=${id}&hours=${hours}`)
       setHistoryPoints(resp.data as StatsHistoryPoint[])
     } catch {
       setHistoryPoints([])
@@ -291,9 +292,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (selectedSite) {
-      fetchHistory(selectedSite.id)
+      fetchHistory(selectedSite.id, selectedHours)
     }
-  }, [selectedSite])
+  }, [selectedSite, selectedHours])
 
   // Compute site rows
   const siteRows = useMemo(() => {
@@ -314,6 +315,16 @@ export default function DashboardPage() {
   const totalPower = (statsOverview?.total_power || 0) / 1000
   const hasHistoryData = historyPoints.length > 0
   const [chartFadeTick, setChartFadeTick] = useState(0)
+
+  // Stale data detection
+  const lastUpdateTime = statsOverview?.last_updated ? new Date(statsOverview.last_updated) : null
+  const isStale = lastUpdateTime ? (Date.now() - lastUpdateTime.getTime()) > 5 * 60 * 1000 : false
+  const lastUpdateLabel = lastUpdateTime
+    ? new Intl.RelativeTimeFormat('vi', { numeric: 'auto' }).format(
+        Math.round((lastUpdateTime.getTime() - Date.now()) / 60000),
+        'minute'
+      )
+    : 'chưa có dữ liệu'
 
   useEffect(() => {
     if (!hasHistoryData) return
@@ -384,6 +395,35 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="max-w-7xl mx-auto space-y-6 pb-8">
+            {/* Fleet Summary Bar */}
+            <div className="flex flex-wrap items-center gap-3 sm:gap-5 px-1 animate-fade-in">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-sm text-slate-300 font-medium">{statsOverview?.online_inverters || 0}<span className="text-slate-500">/{sites.length} online</span></span>
+              </div>
+              <div className="h-4 w-px bg-dark-border hidden sm:block" />
+              <div className="flex items-center gap-2">
+                <IconBolt size={14} className="text-emerald-400" />
+                <span className="text-sm text-slate-300 font-medium">{totalPower.toFixed(1)} MW</span>
+              </div>
+              <div className="h-4 w-px bg-dark-border hidden sm:block" />
+              <div className="flex items-center gap-2">
+                <IconBattery size={14} className="text-purple-400" />
+                <span className="text-sm text-slate-300 font-medium">{(statsOverview?.total_energy_today || 0).toFixed(1)} MWh</span>
+              </div>
+              <div className="h-4 w-px bg-dark-border hidden sm:block" />
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${sites.length > 0 ? (((statsOverview?.online_inverters || 0) / sites.length) >= 0.8 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400') : 'bg-slate-500/15 text-slate-400'}`}>
+                  {sites.length > 0 ? `${Math.round(((statsOverview?.online_inverters || 0) / sites.length) * 100)}%` : '0%'} uptime
+                </span>
+              </div>
+              {isStale && (
+                <div className="flex items-center gap-1.5 ml-auto">
+                  <IconAlertTriangle size={14} className="text-amber-400" />
+                  <span className="text-xs text-amber-400">Dữ liệu cũ ({lastUpdateLabel})</span>
+                </div>
+              )}
+            </div>
             {/* Stats Grid - Mobile: 2-col compact, Desktop: 4-col */}
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
 
@@ -509,14 +549,27 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-white text-base sm:text-lg">Công suất theo thời gian thực</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Cập nhật mỗi 15 giây</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {isStale ? (
+                        <span className="text-amber-400">⚠️ Dữ liệu cũ ({lastUpdateLabel})</span>
+                      ) : (
+                        <span>Cập nhật {lastUpdateLabel}</span>
+                      )}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <select className="dc-input w-36 bg-dark-surface border-dark-border text-slate-300 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500/30 transition-all duration-200">
-                    <option>24 giờ</option>
-                    <option>7 ngày</option>
-                    <option>30 ngày</option>
+                  <select
+                    className="dc-input w-36 bg-dark-surface border-dark-border text-slate-300 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500/30 transition-all duration-200"
+                    value={selectedHours}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setSelectedHours(val);
+                    }}
+                  >
+                    <option value={24}>24 giờ</option>
+                    <option value={168}>7 ngày</option>
+                    <option value={720}>30 ngày</option>
                   </select>
                 </div>
               </div>

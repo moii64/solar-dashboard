@@ -13,10 +13,13 @@ type Site = {
 
 type SiteTelemetry = {
   timestamp: string
+  voltage?: number
+  current?: number
   power?: number
   energy_today?: number
   temperature?: number
   error_code?: string | null
+  is_online?: boolean
 }
 
 type SiteHealth = 'healthy' | 'warning' | 'critical'
@@ -46,9 +49,12 @@ export default function SiteDetailPanel({
   const colors = statusMeta(health)
 
   return (
-    <div className="fixed right-0 top-0 z-30 h-full w-96 overflow-y-auto border-l border-white/10 bg-slate-900/95 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl">
+    <div className="fixed inset-x-0 bottom-0 top-12 z-30 overflow-y-auto border-t border-white/10 bg-slate-900/95 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl sm:inset-y-0 sm:left-auto sm:w-96 sm:border-l sm:border-t-0 sm:p-6">
       <div className="flex items-center justify-between pb-4">
-        <h3 className="text-xl font-semibold text-white">Thông tin site: {site.name}</h3>
+        <div>
+          <h3 className="text-lg sm:text-xl font-semibold text-white">Thông tin site: {site.name}</h3>
+          <p className="mt-1 text-xs text-slate-500">Cập nhật cuối: {formatRelativeTime(latest?.timestamp)}</p>
+        </div>
         <button
           onClick={onClose}
           className="rounded-full bg-white/5 p-2 text-slate-400 transition hover:bg-white/10 hover:text-white"
@@ -61,9 +67,14 @@ export default function SiteDetailPanel({
       </div>
 
       <div className="mb-5 space-y-3">
-        <div className="flex items-center gap-2">
-          <span className={`h-3 w-3 rounded-full ${colors.dot}`} />
-          <span className="text-sm font-medium text-slate-200">{colors.label}</span>
+        <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+          <div className="flex items-center gap-2">
+            <span className={`h-3 w-3 rounded-full ${colors.dot}`} />
+            <span className="text-sm font-medium text-slate-200">{colors.label}</span>
+          </div>
+          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${latest?.is_online === false ? 'bg-rose-500/15 text-rose-300' : 'bg-emerald-500/15 text-emerald-300'}`}>
+            {latest?.is_online === false ? 'Offline' : 'Online'}
+          </span>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -76,6 +87,8 @@ export default function SiteDetailPanel({
         <div className="grid grid-cols-2 gap-3">
           <DetailCard label="Công suất hiện tại" value={`${formatMetric(latest?.power)} W`} accent="cyan" />
           <DetailCard label="Sản lượng hôm nay" value={`${formatMetric(latest?.energy_today, 2)} kWh`} accent="amber" />
+          <DetailCard label="Điện áp" value={latest?.voltage ? `${formatMetric(latest.voltage, 1)} V` : 'N/A'} />
+          <DetailCard label="Dòng điện" value={latest?.current ? `${formatMetric(latest.current, 1)} A` : 'N/A'} />
           <DetailCard label="Nhiệt độ" value={latest?.temperature ? `${formatMetric(latest.temperature, 1)} °C` : 'N/A'} />
           <DetailCard label="Cập nhật cuối" value={formatDateTime(latest?.timestamp)} />
         </div>
@@ -123,6 +136,12 @@ function formatMetric(value?: number | null, digits = 0) {
 function formatDateTime(value?: string | null) {
   if (!value) return '--'
   return new Date(value).toLocaleString('vi-VN')
+}
+
+function formatRelativeTime(value?: string | null) {
+  if (!value) return 'chưa có dữ liệu'
+  const minutes = Math.round((new Date(value).getTime() - Date.now()) / 60000)
+  return new Intl.RelativeTimeFormat('vi', { numeric: 'auto' }).format(minutes, 'minute')
 }
 
 function DetailCard({

@@ -909,7 +909,7 @@ def get_stats_history(
     limit: int = 100,
     db: Session = Depends(get_db),
 ):
-    hours = max(1, min(hours, 168))
+    hours = max(1, min(hours, 720))
     limit = max(1, min(limit, 500))
     since = utcnow() - timedelta(hours=hours)
 
