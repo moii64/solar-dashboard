@@ -371,6 +371,23 @@ export default function DashboardPage() {
 
   const healthyCount = siteRows.filter(r => r.health === 'healthy').length
   const warningCount = siteRows.filter(r => r.health === 'warning').length
+
+  const regionStats = useMemo(() => {
+    const seed: Record<string, { sites: number; power: number; online: number }> = {
+      'Miền Bắc': { sites: 0, power: 0, online: 0 },
+      'Miền Trung': { sites: 0, power: 0, online: 0 },
+      'Miền Nam': { sites: 0, power: 0, online: 0 },
+    }
+
+    for (const row of siteRows) {
+      const bucket = seed[row.region] || (seed[row.region] = { sites: 0, power: 0, online: 0 })
+      bucket.sites += 1
+      bucket.power += row.currentPower || 0
+      if (row.health !== 'critical') bucket.online += 1
+    }
+
+    return seed
+  }, [siteRows])
   const totalPower = (statsOverview?.total_power || 0) / 1000
   const hasHistoryData = historyPoints.length > 0
   const [chartFadeTick, setChartFadeTick] = useState(0)
@@ -488,6 +505,19 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
+            {/* Regional Summary */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {Object.entries(regionStats).map(([region, stat]) => (
+                <div key={region} className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">{region}</p>
+                  <div className="mt-2 flex items-end justify-between">
+                    <p className="text-lg font-semibold text-white">{(stat.power / 1000).toFixed(1)} MW</p>
+                    <p className="text-xs text-slate-400">{stat.online}/{stat.sites} online</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
             {/* Stats Grid - Mobile: 2-col compact, Desktop: 4-col */}
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
 
