@@ -731,6 +731,7 @@ export default function DashboardPage() {
           health={getSiteHealth(selectedSite, latestBySite[selectedSite.id] ?? null)}
           historyPoints={historyPoints}
           onClose={() => setSelectedSite(null)}
+          onUpdate={fetchSites}
         />
       )}
     </div>
