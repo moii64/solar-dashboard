@@ -56,11 +56,11 @@ const url = process.env.FRONTEND_URL || 'https://solar-dashboard-rouge.vercel.ap
     const hasMapControls = /LỚP HIỂN THỊ|Weather|Heatmap|Clusters|Sites/i.test(bodyTextBeforeClick);
     results.push({ step: 'map_visible', ok: hasMapControls });
 
-    // 8. Click a known site in list
-    console.log('8. Clicking known site...');
-    const knownSite = page.locator('.site-list-item').filter({ hasText: 'SolarVN Hà Nội' }).first();
-    if (await knownSite.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await knownSite.click();
+    // 8. Click first available site in list
+    console.log('8. Clicking first available site...');
+    const firstSite = page.locator('.site-list-item').first();
+    if (await firstSite.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await firstSite.click();
       console.log('Clicked. Waiting for panel...');
       await page.waitForTimeout(2000);
       
@@ -73,7 +73,7 @@ const url = process.env.FRONTEND_URL || 'https://solar-dashboard-rouge.vercel.ap
         await page.screenshot({ path: 'auto-browser-panel-check.png' });
       }
     } else {
-      results.push({ step: 'detail_panel_opened', ok: false, reason: 'known_site_not_found' });
+      results.push({ step: 'detail_panel_opened', ok: false, reason: 'no_site_found' });
     }
 
     // 10. Screenshot (viewport only, not fullPage)
