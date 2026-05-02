@@ -123,6 +123,7 @@ export default function MapComponent({ siteRows, onSiteClick, selectedSiteId }: 
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const popupRef = useRef<maplibregl.Popup | null>(null)
+  const onSiteClickRef = useRef(onSiteClick)
   const [mapLoaded, setMapLoaded] = useState(false)
   const [layerVisibility, setLayerVisibility] = useState<LayerVisibility>({
     weather: HAS_WEATHER_TILE,
@@ -136,6 +137,15 @@ export default function MapComponent({ siteRows, onSiteClick, selectedSiteId }: 
   const weatherMeta = WEATHER_META[weatherKind]
 
   const featureCollection = useMemo(() => buildFeatureCollection(siteRows), [siteRows])
+  const featureCollectionRef = useRef(featureCollection)
+
+  useEffect(() => {
+    onSiteClickRef.current = onSiteClick
+  }, [onSiteClick])
+
+  useEffect(() => {
+    featureCollectionRef.current = featureCollection
+  }, [featureCollection])
 
   const toggleLayer = useCallback((layer: keyof LayerVisibility) => {
     setLayerVisibility((prev) => ({ ...prev, [layer]: !prev[layer] }))
@@ -195,7 +205,7 @@ export default function MapComponent({ siteRows, onSiteClick, selectedSiteId }: 
 
       map.addSource(SOURCE_ID, {
         type: 'geojson',
-        data: featureCollection,
+        data: featureCollectionRef.current,
         cluster: true,
         clusterRadius: 44,
         clusterMaxZoom: 9,
@@ -340,7 +350,7 @@ export default function MapComponent({ siteRows, onSiteClick, selectedSiteId }: 
         const props = feature?.properties as SiteFeatureProperties | undefined
         if (!feature || !props) return
 
-        onSiteClick(Number(props.siteId))
+        onSiteClickRef.current(Number(props.siteId))
 
         if (!popupRef.current) {
           popupRef.current = new maplibregl.Popup({ closeButton: false, offset: 12 })
@@ -375,7 +385,7 @@ export default function MapComponent({ siteRows, onSiteClick, selectedSiteId }: 
       map.remove()
       mapRef.current = null
     }
-  }, [featureCollection, onSiteClick])
+  }, [])
 
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return
