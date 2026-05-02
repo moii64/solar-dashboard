@@ -402,47 +402,83 @@ export default function MapComponent({ siteRows, onSiteClick, selectedSiteId }: 
     if (!mapLoaded || !mapRef.current) return
     const map = mapRef.current
 
-    if (selectedSiteId === null) {
-      map.setPaintProperty(POINT_LAYER_ID, 'circle-stroke-width', 1.5)
-      map.setPaintProperty(POINT_LAYER_ID, 'circle-stroke-color', '#0f172a')
-      return
+    const applySelectedSiteStyle = () => {
+      if (!map.getLayer(POINT_LAYER_ID) || !map.isStyleLoaded()) return false
+
+      if (selectedSiteId === null) {
+        map.setPaintProperty(POINT_LAYER_ID, 'circle-stroke-width', 1.5)
+        map.setPaintProperty(POINT_LAYER_ID, 'circle-stroke-color', '#0f172a')
+        return true
+      }
+
+      map.setPaintProperty(POINT_LAYER_ID, 'circle-stroke-width', [
+        'case',
+        ['==', ['get', 'siteId'], selectedSiteId],
+        3,
+        1.5,
+      ])
+      map.setPaintProperty(POINT_LAYER_ID, 'circle-stroke-color', [
+        'case',
+        ['==', ['get', 'siteId'], selectedSiteId],
+        '#67e8f9',
+        '#0f172a',
+      ])
+      return true
     }
 
-    map.setPaintProperty(POINT_LAYER_ID, 'circle-stroke-width', [
-      'case',
-      ['==', ['get', 'siteId'], selectedSiteId],
-      3,
-      1.5,
-    ])
-    map.setPaintProperty(POINT_LAYER_ID, 'circle-stroke-color', [
-      'case',
-      ['==', ['get', 'siteId'], selectedSiteId],
-      '#67e8f9',
-      '#0f172a',
-    ])
+    if (applySelectedSiteStyle()) return
+
+    const handleStyleReady = () => {
+      if (applySelectedSiteStyle()) {
+        map.off('styledata', handleStyleReady)
+      }
+    }
+
+    map.on('styledata', handleStyleReady)
+    return () => {
+      map.off('styledata', handleStyleReady)
+    }
   }, [selectedSiteId, mapLoaded])
 
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return
     const map = mapRef.current
 
-    if (map.getLayer(WEATHER_LAYER_ID)) {
-      map.setLayoutProperty(WEATHER_LAYER_ID, 'visibility', layerVisibility.weather ? 'visible' : 'none')
+    const applyLayerVisibility = () => {
+      if (!map.isStyleLoaded()) return false
+
+      if (map.getLayer(WEATHER_LAYER_ID)) {
+        map.setLayoutProperty(WEATHER_LAYER_ID, 'visibility', layerVisibility.weather ? 'visible' : 'none')
+      }
+      if (map.getLayer(HEAT_LAYER_ID)) {
+        map.setLayoutProperty(HEAT_LAYER_ID, 'visibility', layerVisibility.heatmap ? 'visible' : 'none')
+      }
+      if (map.getLayer(CLUSTER_LAYER_ID)) {
+        map.setLayoutProperty(CLUSTER_LAYER_ID, 'visibility', layerVisibility.clusters ? 'visible' : 'none')
+      }
+      if (map.getLayer(CLUSTER_COUNT_LAYER_ID)) {
+        map.setLayoutProperty(CLUSTER_COUNT_LAYER_ID, 'visibility', layerVisibility.clusters ? 'visible' : 'none')
+      }
+      if (map.getLayer(POINT_LAYER_ID)) {
+        map.setLayoutProperty(POINT_LAYER_ID, 'visibility', layerVisibility.points ? 'visible' : 'none')
+      }
+      if (map.getLayer(WEATHER_LAYER_ID)) {
+        map.setPaintProperty(WEATHER_LAYER_ID, 'raster-opacity', weatherOpacity)
+      }
+      return true
     }
-    if (map.getLayer(HEAT_LAYER_ID)) {
-      map.setLayoutProperty(HEAT_LAYER_ID, 'visibility', layerVisibility.heatmap ? 'visible' : 'none')
+
+    if (applyLayerVisibility()) return
+
+    const handleStyleReady = () => {
+      if (applyLayerVisibility()) {
+        map.off('styledata', handleStyleReady)
+      }
     }
-    if (map.getLayer(CLUSTER_LAYER_ID)) {
-      map.setLayoutProperty(CLUSTER_LAYER_ID, 'visibility', layerVisibility.clusters ? 'visible' : 'none')
-    }
-    if (map.getLayer(CLUSTER_COUNT_LAYER_ID)) {
-      map.setLayoutProperty(CLUSTER_COUNT_LAYER_ID, 'visibility', layerVisibility.clusters ? 'visible' : 'none')
-    }
-    if (map.getLayer(POINT_LAYER_ID)) {
-      map.setLayoutProperty(POINT_LAYER_ID, 'visibility', layerVisibility.points ? 'visible' : 'none')
-    }
-    if (map.getLayer(WEATHER_LAYER_ID)) {
-      map.setPaintProperty(WEATHER_LAYER_ID, 'raster-opacity', weatherOpacity)
+
+    map.on('styledata', handleStyleReady)
+    return () => {
+      map.off('styledata', handleStyleReady)
     }
   }, [layerVisibility, weatherOpacity, mapLoaded])
 
