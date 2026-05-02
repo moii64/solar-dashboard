@@ -107,12 +107,14 @@ function SiteListItem({
   latest, 
   health, 
   onClick,
+  selected = false,
   index = 0
 }: { 
   site: Site
   latest: SiteTelemetry | null
   health: SiteHealth
   onClick: () => void
+  selected?: boolean
   index?: number
 }) {
   const lastSeen = latest?.timestamp ? new Date(latest.timestamp) : null
@@ -143,7 +145,7 @@ function SiteListItem({
   
   return (
     <div 
-      className="site-list-item group animate-fade-in cursor-pointer"
+      className={`site-list-item group animate-fade-in cursor-pointer rounded-2xl border transition-all duration-300 ${selected ? 'border-cyan-400/60 bg-cyan-400/10 shadow-[0_0_0_1px_rgba(103,232,249,0.2),0_12px_30px_rgba(6,182,212,0.16)]' : 'border-transparent hover:border-white/10'}`}
       onClick={onClick}
       style={{ animationDelay: `${index * 100}ms` }}
     >
@@ -632,6 +634,7 @@ export default function DashboardPage() {
                         latest={row.latest}
                         health={row.health}
                         onClick={() => setSelectedSite(row.site)}
+                        selected={selectedSite?.id === row.site.id}
                         index={index}
                       />
                     ))
