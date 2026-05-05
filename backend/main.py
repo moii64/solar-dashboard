@@ -11,6 +11,9 @@ from typing import List, Optional, Any
 from dotenv import load_dotenv
 load_dotenv()
 
+from telegram_notifier import send_telegram_alert
+import asyncio
+
 import paho.mqtt.client as mqtt
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends
@@ -477,6 +480,26 @@ def compute_stats_overview(db: Session) -> dict:
     }
 
 
+def check_and_send_alerts(inverter: Inverter, reading: InverterData):
+    alerts = []
+    
+    if not reading.is_online:
+        alerts.append(("critical", f"Inverter `{inverter.name}` bị mất kết nối (OFFLINE)."))
+    
+    if reading.temperature is not None and inverter.alert_temp_max is not None:
+        if reading.temperature >= inverter.alert_temp_max:
+            alerts.append(("warning", f"Nhiệt độ inverter `{inverter.name}` quá cao: {reading.temperature}°C (ngưỡng: {inverter.alert_temp_max}°C)."))
+            
+    if reading.power is not None and inverter.alert_power_min is not None and reading.power < inverter.alert_power_min:
+        alerts.append(("warning", f"Công suất inverter `{inverter.name}` quá thấp: {reading.power}W (ngưỡng: {inverter.alert_power_min}W)."))
+        
+    for level, msg in alerts:
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(send_telegram_alert(msg, level))
+        except RuntimeError:
+            asyncio.run(send_telegram_alert(msg, level))
+
 def persist_telemetry(db: Session, inverter: Inverter, payload: TelemetryReadingIn) -> InverterData:
     is_online = payload.is_online
     if is_online is None:
@@ -499,6 +522,9 @@ def persist_telemetry(db: Session, inverter: Inverter, payload: TelemetryReading
     db.add(reading)
     db.commit()
     db.refresh(reading)
+    
+    check_and_send_alerts(inverter, reading)
+    
     return reading
 
 

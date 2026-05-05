@@ -40,6 +40,9 @@ services:
       MQTT_BROKER: mqtt
       MQTT_PORT: "1883"
       MQTT_TOPIC: solar/inverters/#
+      ENABLE_TELEGRAM_ALERTS: "${ENABLE_TELEGRAM_ALERTS:-0}"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+      TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID:-}"
     depends_on:
       - redis
       - db
