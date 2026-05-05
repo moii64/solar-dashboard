@@ -1,8 +1,17 @@
 # Solar Dashboard - Progress Log
 
-Cập nhật gần nhất: 2026-04-28 06:57 (GMT+7)
+Cập nhật gần nhất: 2026-05-05 13:35 (GMT+7)
 
-## ✅ Đã thực hiện
+## ✅ Đã thực hiện (mới 2026-05-05)
+- **UI Polish Pass 1:** Card hover effects (scale + glow), smooth chart transitions, live badge pulse animation, bottom balance section khi ít data.
+- **UI Polish Pass 2:** Mobile responsive enhancements - ẩn scrollbar header nav, tối ưu detail panel padding, map touch-action cho mobile.
+- **Monitoring Expansion Board:** Thêm 3 module chính:
+  - **Bản đồ tương tác:** Hiển thị sites/online/cần xử lý, heatmap + cluster + weather overlay.
+  - **Phân tích xu hướng:** Trend tăng/giảm theo 24h/7d/30d, avg/peak power.
+  - **Cảnh báo thông minh:** Rule-based alerts (offline, stale >5p, nhiệt cao, underperform) với gợi ý action.
+- **Seed data mẫu:** Tạo 3 site (Bắc Ninh, Đà Nẵng, Cần Thơ) + 48 telemetry points (healthy/warning/critical) để test UI.
+- **Docker:** Xác nhận Docker Desktop đang chạy đầy đủ 5 containers (backend, frontend, db, redis, simulator, mqtt).
+
 - Kiểm tra lại project thực tế ở root:
   - `backend/`
   - `frontend/`
@@ -151,14 +160,17 @@ Cập nhật gần nhất: 2026-04-28 06:57 (GMT+7)
 - [x] Verify touch interactions (tap site, scroll map, toggle layers)
 - [x] Check text readability và button size trên mobile
 - [x] Screenshot mobile để so sánh với desktop
+- [x] Mobile Polish (ẩn scrollbar header nav, tối ưu detail panel padding, map touch-action)
+- **Status:** Done — đã push lên Vercel.
 - **Deadline:** 2026-04-30
 - **Owner:** Frontend team
 
 ### 2. Thêm micro-animations & transitions (Priority: Medium)
-- [ ] Card hover effects tinh tế hơn (scale + shadow)
-- [ ] Smooth transitions cho chart data updates
+- [x] Card hover effects tinh tế hơn (scale + shadow)
+- [x] Smooth transitions cho chart data updates
 - [x] Loading skeleton cho map/chart khi fetch data
 - [x] Status badge pulse animation cho live indicator
+- **Status:** Done — đã push lên Vercel.
 - **Deadline:** 2026-05-02
 - **Owner:** Frontend team
 
