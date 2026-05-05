@@ -427,19 +427,23 @@ export default function DashboardPage() {
             
             <div className="hidden sm:block h-8 w-px bg-dark-border mx-2"></div>
             
-            <nav className="flex items-center gap-2 overflow-x-auto scrollbar-thin">
-              <NavPill 
-                icon={<IconActivity size={16} />} 
-                label="Tổng quan" 
-                active={activeTab === 'overview'} 
-                onClick={() => setActiveTab('overview')} 
-              />
-              <NavPill 
-                icon={<IconBolt size={16} />} 
-                label="Chi tiết" 
-                active={activeTab === 'details'} 
-                onClick={() => setActiveTab('details')} 
-              />
+            <nav className="flex items-center gap-2 overflow-x-auto scrollbar-thin scrollbar-hide-mobile pb-1 sm:pb-0 snap-x">
+              <div className="snap-start shrink-0">
+                <NavPill 
+                  icon={<IconActivity size={16} />} 
+                  label="Tổng quan" 
+                  active={activeTab === 'overview'} 
+                  onClick={() => setActiveTab('overview')} 
+                />
+              </div>
+              <div className="snap-start shrink-0">
+                <NavPill 
+                  icon={<IconBolt size={16} />} 
+                  label="Chi tiết" 
+                  active={activeTab === 'details'} 
+                  onClick={() => setActiveTab('details')} 
+                />
+              </div>
             </nav>
           </div>
           
@@ -581,9 +585,9 @@ export default function DashboardPage() {
                     </span>
                   </div>
                 </div>
-                <div className="map-wrapper rounded-xl overflow-hidden" style={{ height: siteRows.length > 2 ? '350px' : '280px' }}>
+                <div className="map-wrapper rounded-xl overflow-hidden touch-pan-y-mobile" style={{ height: siteRows.length > 2 ? '350px' : '280px' }}>
                   {/* Mobile: slightly shorter map */}
-                  <style>{`@media(max-width:639px){.map-wrapper{height:220px !important}}`}</style>
+                  <style>{`@media(max-width:639px){.map-wrapper{height:240px !important}}`}</style>
                   <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-500"><div className="animate-spin w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center"><IconMap size={20} /></div></div>}>
                     <MapComponent 
                       siteRows={siteRows}

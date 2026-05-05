@@ -92,12 +92,12 @@ export default function SiteDetailPanel({
       />
 
       <div
-        className="absolute inset-x-0 bottom-0 top-12 overflow-y-auto border-t border-white/10 bg-slate-900/95 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl sm:inset-y-0 sm:left-auto sm:w-96 sm:border-l sm:border-t-0 sm:p-6"
+        className="absolute inset-x-0 bottom-0 top-12 overflow-y-auto border-t border-white/10 bg-slate-900/95 p-5 sm:p-6 shadow-2xl shadow-black/30 backdrop-blur-xl sm:inset-y-0 sm:left-auto sm:w-96 sm:border-l sm:border-t-0 rounded-t-2xl sm:rounded-none touch-pan-y-mobile"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between pb-4">
           <div>
-            <h3 className="text-lg sm:text-xl font-semibold text-white">Thông tin site: {site.name}</h3>
+            <h3 className="text-lg sm:text-xl font-semibold text-white pr-2 truncate">Thông tin site: {site.name}</h3>
             <p className="mt-1 text-xs text-slate-500">Cập nhật cuối: {formatRelativeTime(latest?.timestamp)}</p>
           </div>
           <button

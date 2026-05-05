@@ -306,6 +306,7 @@ body {
   
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
+    height: 6px;
   }
   
   .scrollbar-thin::-webkit-scrollbar-track {
@@ -315,6 +316,20 @@ body {
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background: rgba(148, 163, 184, 0.3);
     border-radius: 3px;
+  }
+  
+  @media (max-width: 639px) {
+    .scrollbar-hide-mobile::-webkit-scrollbar {
+      display: none;
+    }
+    .scrollbar-hide-mobile {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    
+    .touch-pan-y-mobile {
+      touch-action: pan-y;
+    }
   }
 }
 
