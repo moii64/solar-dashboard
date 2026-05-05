@@ -695,7 +695,7 @@ export default function DashboardPage() {
               </div>
               <div className="dc-chart-area rounded-xl" style={{ height: hasHistoryData ? '280px' : '128px' }}>
                 {hasHistoryData ? (
-                  <div key={chartFadeTick} className="h-full animate-fade-in">
+                  <div key={chartFadeTick} className="h-full chart-update-smooth">
                     <Suspense fallback={<div className="h-full flex items-center justify-center text-slate-500"><div className="animate-pulse">Đang tải biểu đồ...</div></div>}>
                       <Chart data={historyPoints} />
                     </Suspense>
@@ -719,6 +719,37 @@ export default function DashboardPage() {
                 )}
               </div>
             </div>
+
+            {/* Bottom Balance Section - when data is sparse */}
+            {siteRows.length <= 2 && (
+              <div className="mt-8 animate-fade-in" style={{ animationDelay: '500ms' }}>
+                <div className="dc-card p-6 text-center space-y-4">
+                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400/10 to-cyan-500/10 mb-2">
+                    <IconSun size={28} className="text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-2">Mở rộng hệ thống giám sát</h3>
+                    <p className="text-sm text-slate-400 max-w-md mx-auto">
+                      Thêm nhiều site để khai thác đầy đủ tính năng phân tích theo khu vực, so sánh hiệu suất cụm, và heatmap thời gian thực.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10">
+                      <IconMap size={16} className="text-cyan-400" />
+                      <span className="text-xs text-slate-300">Bản đồ tương tác</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10">
+                      <IconChart size={16} className="text-purple-400" />
+                      <span className="text-xs text-slate-300">Phân tích xu hướng</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10">
+                      <IconActivity size={16} className="text-emerald-400" />
+                      <span className="text-xs text-slate-300">Cảnh báo thông minh</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>
