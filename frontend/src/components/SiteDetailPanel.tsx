@@ -12,6 +12,9 @@ type Site = {
   latitude?: number
   longitude?: number
   device_type?: string
+  alert_temp_max?: number
+  alert_power_min?: number
+  alert_offline_mins?: number
 }
 
 type SiteTelemetry = {
@@ -59,6 +62,9 @@ export default function SiteDetailPanel({
     latitude: site.latitude?.toString() || '',
     longitude: site.longitude?.toString() || '',
     device_type: site.device_type || '',
+    alert_temp_max: site.alert_temp_max?.toString() || '70',
+    alert_power_min: site.alert_power_min?.toString() || '0',
+    alert_offline_mins: site.alert_offline_mins?.toString() || '5',
   })
   const [isSaving, setIsSaving] = useState(false)
 
@@ -71,6 +77,9 @@ export default function SiteDetailPanel({
         latitude: formData.latitude ? parseFloat(formData.latitude) : undefined,
         longitude: formData.longitude ? parseFloat(formData.longitude) : undefined,
         device_type: formData.device_type,
+        alert_temp_max: formData.alert_temp_max ? parseFloat(formData.alert_temp_max) : undefined,
+        alert_power_min: formData.alert_power_min ? parseFloat(formData.alert_power_min) : undefined,
+        alert_offline_mins: formData.alert_offline_mins ? parseInt(formData.alert_offline_mins, 10) : undefined,
       })
       setIsEditing(false)
       onUpdate?.()
@@ -170,6 +179,42 @@ export default function SiteDetailPanel({
                     <option value="generic">Generic</option>
                   </select>
                 </div>
+
+                <div className="pt-2">
+                  <h4 className="text-sm font-medium text-white mb-2">Ngưỡng cảnh báo tùy chỉnh</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-1">Nhiệt max (°C)</label>
+                      <input
+                        type="number"
+                        step="1"
+                        value={formData.alert_temp_max}
+                        onChange={(e) => setFormData({ ...formData, alert_temp_max: e.target.value })}
+                        className="w-full rounded-xl border border-white/10 bg-slate-800/60 px-3 py-2 text-sm text-white focus:border-amber-400/50 focus:outline-none focus:ring-2 focus:ring-amber-400/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-1">Power min (kW)</label>
+                      <input
+                        type="number"
+                        step="1"
+                        value={formData.alert_power_min}
+                        onChange={(e) => setFormData({ ...formData, alert_power_min: e.target.value })}
+                        className="w-full rounded-xl border border-white/10 bg-slate-800/60 px-3 py-2 text-sm text-white focus:border-amber-400/50 focus:outline-none focus:ring-2 focus:ring-amber-400/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-1">Offline max (phút)</label>
+                      <input
+                        type="number"
+                        step="1"
+                        value={formData.alert_offline_mins}
+                        onChange={(e) => setFormData({ ...formData, alert_offline_mins: e.target.value })}
+                        className="w-full rounded-xl border border-white/10 bg-slate-800/60 px-3 py-2 text-sm text-white focus:border-amber-400/50 focus:outline-none focus:ring-2 focus:ring-amber-400/20"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="flex gap-2">
                 <button
@@ -188,6 +233,9 @@ export default function SiteDetailPanel({
                       latitude: site.latitude?.toString() || '',
                       longitude: site.longitude?.toString() || '',
                       device_type: site.device_type || '',
+                      alert_temp_max: site.alert_temp_max?.toString() || '70',
+                      alert_power_min: site.alert_power_min?.toString() || '0',
+                      alert_offline_mins: site.alert_offline_mins?.toString() || '5',
                     })
                   }}
                   disabled={isSaving}

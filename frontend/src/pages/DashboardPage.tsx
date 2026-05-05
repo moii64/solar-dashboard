@@ -17,6 +17,9 @@ type Site = {
   device_type?: string
   status: string
   created_at: string
+  alert_temp_max?: number
+  alert_power_min?: number
+  alert_offline_mins?: number
 }
 
 type SiteTelemetry = {
@@ -402,19 +405,29 @@ export default function DashboardPage() {
   const smartAlerts = useMemo(() => {
     return siteRows
       .map((row) => {
+        const tempMax = row.site.alert_temp_max ?? 70.0
+        const offlineMins = row.site.alert_offline_mins ?? 5
+        const powerMin = row.site.alert_power_min ?? 0
+
         const lastSeen = row.latest?.timestamp ? new Date(row.latest.timestamp) : null
         const minutesOld = lastSeen ? (Date.now() - lastSeen.getTime()) / 60000 : Infinity
+
         if (row.health === 'critical') {
           return { level: 'critical' as const, site: row.site.name, message: 'Mất kết nối hoặc offline', action: 'Kiểm tra gateway / nguồn AC' }
         }
-        if (minutesOld > 5) {
-          return { level: 'warning' as const, site: row.site.name, message: 'Telemetry quá 5 phút chưa cập nhật', action: 'Kiểm tra MQTT topic / network' }
+        if (minutesOld > offlineMins) {
+          return { level: 'warning' as const, site: row.site.name, message: `Telemetry không cập nhật quá ${offlineMins} phút`, action: 'Kiểm tra MQTT topic / network' }
         }
-        if ((row.temperature ?? 0) >= 70) {
-          return { level: 'warning' as const, site: row.site.name, message: 'Nhiệt độ inverter cao', action: 'Kiểm tra thông gió / tải' }
+        if ((row.temperature ?? 0) >= tempMax) {
+          return { level: 'warning' as const, site: row.site.name, message: `Nhiệt độ inverter cao (${row.temperature}°C > ${tempMax}°C)`, action: 'Kiểm tra thông gió / tải' }
         }
         if (row.health === 'warning') {
-          return { level: 'warning' as const, site: row.site.name, message: 'Công suất thấp hơn ngưỡng kỳ vọng', action: 'So sánh irradiance / kiểm tra string' }
+          if (powerMin > 0 && (row.currentPower ?? 0) < powerMin) {
+            return { level: 'warning' as const, site: row.site.name, message: `Công suất thấp hơn ngưỡng cảnh báo (< ${powerMin} kW)`, action: 'So sánh irradiance / kiểm tra string' }
+          }
+          if (powerMin === 0) {
+            return { level: 'warning' as const, site: row.site.name, message: 'Công suất thấp hơn kỳ vọng', action: 'So sánh irradiance / kiểm tra string' }
+          }
         }
         return null
       })

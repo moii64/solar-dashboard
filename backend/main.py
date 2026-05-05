@@ -126,6 +126,9 @@ class InverterCreate(BaseModel):
     longitude: Optional[float] = None
     ip_address: Optional[str] = None
     device_type: Optional[str] = "generic"
+    alert_temp_max: Optional[float] = 70.0
+    alert_power_min: Optional[float] = 0.0
+    alert_offline_mins: Optional[int] = 5
 
 
 class InverterUpdate(BaseModel):
@@ -136,6 +139,9 @@ class InverterUpdate(BaseModel):
     ip_address: Optional[str] = None
     device_type: Optional[str] = None
     status: Optional[str] = None
+    alert_temp_max: Optional[float] = None
+    alert_power_min: Optional[float] = None
+    alert_offline_mins: Optional[int] = None
 
 
 class InverterResponse(InverterCreate):
