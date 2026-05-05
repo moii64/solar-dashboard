@@ -373,6 +373,54 @@ export default function DashboardPage() {
 
   const healthyCount = siteRows.filter(r => r.health === 'healthy').length
   const warningCount = siteRows.filter(r => r.health === 'warning').length
+  const criticalCount = siteRows.filter(r => r.health === 'critical').length
+
+  const trendStats = useMemo(() => {
+    const validPower = historyPoints
+      .map((p) => p.power ?? 0)
+      .filter((p) => Number.isFinite(p) && p > 0)
+    if (validPower.length < 2) {
+      return { direction: 'flat', deltaPercent: 0, peakPower: 0, avgPower: 0 }
+    }
+
+    const midpoint = Math.floor(validPower.length / 2)
+    const firstHalf = validPower.slice(0, midpoint)
+    const secondHalf = validPower.slice(midpoint)
+    const avg = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1)
+    const firstAvg = avg(firstHalf)
+    const secondAvg = avg(secondHalf)
+    const deltaPercent = firstAvg > 0 ? ((secondAvg - firstAvg) / firstAvg) * 100 : 0
+
+    return {
+      direction: deltaPercent > 3 ? 'up' : deltaPercent < -3 ? 'down' : 'flat',
+      deltaPercent,
+      peakPower: Math.max(...validPower),
+      avgPower: avg(validPower),
+    }
+  }, [historyPoints])
+
+  const smartAlerts = useMemo(() => {
+    return siteRows
+      .map((row) => {
+        const lastSeen = row.latest?.timestamp ? new Date(row.latest.timestamp) : null
+        const minutesOld = lastSeen ? (Date.now() - lastSeen.getTime()) / 60000 : Infinity
+        if (row.health === 'critical') {
+          return { level: 'critical' as const, site: row.site.name, message: 'Mất kết nối hoặc offline', action: 'Kiểm tra gateway / nguồn AC' }
+        }
+        if (minutesOld > 5) {
+          return { level: 'warning' as const, site: row.site.name, message: 'Telemetry quá 5 phút chưa cập nhật', action: 'Kiểm tra MQTT topic / network' }
+        }
+        if ((row.temperature ?? 0) >= 70) {
+          return { level: 'warning' as const, site: row.site.name, message: 'Nhiệt độ inverter cao', action: 'Kiểm tra thông gió / tải' }
+        }
+        if (row.health === 'warning') {
+          return { level: 'warning' as const, site: row.site.name, message: 'Công suất thấp hơn ngưỡng kỳ vọng', action: 'So sánh irradiance / kiểm tra string' }
+        }
+        return null
+      })
+      .filter(Boolean)
+      .slice(0, 4) as Array<{ level: 'warning' | 'critical'; site: string; message: string; action: string }>
+  }, [siteRows])
 
   const regionStats = useMemo(() => {
     const seed: Record<string, { sites: number; power: number; online: number }> = {
@@ -565,6 +613,77 @@ export default function DashboardPage() {
               />
             </div>
 
+            {/* Expansion Intelligence Strip */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 animate-slide-up" style={{ animationDelay: '150ms' }}>
+              <div className="dc-card p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="font-semibold text-white">Bản đồ tương tác</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Heatmap + cluster + weather layer</p>
+                  </div>
+                  <IconMap size={22} className="text-cyan-400" />
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                    <p className="text-lg font-semibold text-white">{siteRows.length}</p>
+                    <p className="text-[10px] text-slate-500">sites</p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                    <p className="text-lg font-semibold text-emerald-300">{healthyCount}</p>
+                    <p className="text-[10px] text-slate-500">online</p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                    <p className="text-lg font-semibold text-amber-300">{warningCount + criticalCount}</p>
+                    <p className="text-[10px] text-slate-500">cần xem</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="dc-card p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="font-semibold text-white">Phân tích xu hướng</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">So sánh nửa đầu / nửa sau khung giờ</p>
+                  </div>
+                  <IconChart size={22} className="text-purple-400" />
+                </div>
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className={`text-2xl font-bold ${trendStats.direction === 'down' ? 'text-rose-300' : trendStats.direction === 'up' ? 'text-emerald-300' : 'text-slate-200'}`}>
+                      {trendStats.direction === 'up' ? '↗' : trendStats.direction === 'down' ? '↘' : '→'} {Math.abs(trendStats.deltaPercent).toFixed(1)}%
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">Avg {trendStats.avgPower.toFixed(0)} kW • Peak {trendStats.peakPower.toFixed(0)} kW</p>
+                  </div>
+                  <span className="rounded-full bg-white/[0.04] border border-white/10 px-3 py-1 text-xs text-slate-300">{selectedHours}h</span>
+                </div>
+              </div>
+
+              <div className="dc-card p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="font-semibold text-white">Cảnh báo thông minh</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Rule-based từ telemetry hiện tại</p>
+                  </div>
+                  <IconAlertTriangle size={22} className={smartAlerts.length ? 'text-amber-400' : 'text-emerald-400'} />
+                </div>
+                {smartAlerts.length ? (
+                  <div className="space-y-2">
+                    {smartAlerts.slice(0, 2).map((alert, index) => (
+                      <div key={`${alert.site}-${index}`} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${alert.level === 'critical' ? 'bg-rose-400' : 'bg-amber-400'}`} />
+                          <p className="text-xs font-medium text-white truncate">{alert.site}</p>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-400">{alert.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-sm text-emerald-300">Không có cảnh báo mới</div>
+                )}
+              </div>
+            </div>
+
             {/* Map + Sites Row - Improved grid */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
               {/* Map */}
@@ -724,36 +843,63 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Bottom Balance Section - when data is sparse */}
-            {siteRows.length <= 2 && (
-              <div className="mt-8 animate-fade-in" style={{ animationDelay: '500ms' }}>
-                <div className="dc-card p-6 text-center space-y-4">
-                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400/10 to-cyan-500/10 mb-2">
-                    <IconSun size={28} className="text-emerald-400" />
-                  </div>
+            {/* Monitoring Expansion Board */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 animate-slide-up" style={{ animationDelay: '500ms' }}>
+              <div className="xl:col-span-2 dc-card p-5 sm:p-6">
+                <div className="flex items-center justify-between mb-5">
                   <div>
-                    <h3 className="text-lg font-semibold text-white mb-2">Mở rộng hệ thống giám sát</h3>
-                    <p className="text-sm text-slate-400 max-w-md mx-auto">
-                      Thêm nhiều site để khai thác đầy đủ tính năng phân tích theo khu vực, so sánh hiệu suất cụm, và heatmap thời gian thực.
-                    </p>
+                    <h3 className="text-lg font-semibold text-white">Bảng mở rộng giám sát</h3>
+                    <p className="text-xs text-slate-500 mt-1">Roadmap trực tiếp từ telemetry hiện có</p>
                   </div>
-                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10">
-                      <IconMap size={16} className="text-cyan-400" />
-                      <span className="text-xs text-slate-300">Bản đồ tương tác</span>
+                  <span className="rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-400/20 px-3 py-1 text-xs">Phase 1</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <IconMap size={18} className="text-cyan-400" />
+                      <p className="font-medium text-white">Bản đồ tương tác</p>
                     </div>
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10">
-                      <IconChart size={16} className="text-purple-400" />
-                      <span className="text-xs text-slate-300">Phân tích xu hướng</span>
+                    <p className="text-sm text-slate-400">Cluster site, heatmap cảnh báo, weather overlay, chọn site trực tiếp từ map.</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <IconChart size={18} className="text-purple-400" />
+                      <p className="font-medium text-white">Phân tích xu hướng</p>
                     </div>
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10">
-                      <IconActivity size={16} className="text-emerald-400" />
-                      <span className="text-xs text-slate-300">Cảnh báo thông minh</span>
+                    <p className="text-sm text-slate-400">Theo dõi peak, average, nhịp tăng/giảm công suất theo 24h / 7d / 30d.</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <IconAlertTriangle size={18} className="text-amber-400" />
+                      <p className="font-medium text-white">Cảnh báo thông minh</p>
                     </div>
+                    <p className="text-sm text-slate-400">Flag site stale, offline, nóng, hoặc underperform để ưu tiên xử lý.</p>
                   </div>
                 </div>
               </div>
-            )}
+
+              <div className="dc-card p-5 sm:p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Top cảnh báo cần xử lý</h3>
+                {smartAlerts.length ? (
+                  <div className="space-y-3">
+                    {smartAlerts.map((alert, index) => (
+                      <div key={`${alert.site}-${index}-full`} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium text-white truncate">{alert.site}</p>
+                          <span className={`text-[10px] px-2 py-1 rounded-full ${alert.level === 'critical' ? 'bg-rose-500/15 text-rose-300' : 'bg-amber-500/15 text-amber-300'}`}>
+                            {alert.level === 'critical' ? 'Critical' : 'Warning'}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-xs text-slate-400">{alert.message}</p>
+                        <p className="mt-1 text-xs text-cyan-300">→ {alert.action}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-4 text-sm text-emerald-300">Toàn bộ site đang ổn. Chưa có alert nào cần escalte.</div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </main>
