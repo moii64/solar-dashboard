@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import DeckGL from '@deck.gl/react'
+import { ScatterplotLayer } from '@deck.gl/layers'
+import type { MapViewState, PickingInfo } from '@deck.gl/core'
+
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
@@ -28,6 +32,7 @@ type LayerVisibility = {
   heatmap: boolean
   clusters: boolean
   points: boolean
+  deckglPoints: boolean // New layer for DeckGL
 }
 
 type WeatherLayerKind = 'precipitation' | 'clouds' | 'temp'
@@ -122,14 +127,23 @@ function buildFeatureCollection(rows: SiteRow[]): GeoJSON.FeatureCollection<GeoJ
 export default function MapComponent({ siteRows, onSiteClick, selectedSiteId }: MapComponentProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
+  const deckGlRef = useRef<HTMLDivElement>(null) // Ref for DeckGL container
   const popupRef = useRef<maplibregl.Popup | null>(null)
   const onSiteClickRef = useRef(onSiteClick)
   const [mapLoaded, setMapLoaded] = useState(false)
+  const [viewState, setViewState] = useState<MapViewState>({
+    longitude: 108.2,
+    latitude: 15.5,
+    zoom: 5.5,
+    pitch: 0,
+    bearing: 0,
+  })
   const [layerVisibility, setLayerVisibility] = useState<LayerVisibility>({
     weather: HAS_WEATHER_TILE,
     heatmap: true,
     clusters: true,
     points: true,
+    deckglPoints: true, // Enable by default
   })
   const [weatherOpacity, setWeatherOpacity] = useState(DEFAULT_WEATHER_OPACITY)
 
@@ -172,8 +186,8 @@ export default function MapComponent({ siteRows, onSiteClick, selectedSiteId }: 
           { id: 'carto-tiles', type: 'raster', source: 'carto-dark' },
         ],
       },
-      center: [108.2, 15.5],
-      zoom: 5.5,
+      center: [viewState.longitude, viewState.latitude],
+      zoom: viewState.zoom,
       minZoom: 4,
       maxZoom: 18,
       attributionControl: false,
@@ -181,6 +195,16 @@ export default function MapComponent({ siteRows, onSiteClick, selectedSiteId }: 
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
     map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left')
+
+    map.on('move', () => {
+      setViewState({
+        longitude: map.getCenter().lng,
+        latitude: map.getCenter().lat,
+        zoom: map.getZoom(),
+        pitch: map.getPitch(),
+        bearing: map.getBearing(),
+      })
+    })
 
     map.on('load', () => {
       if (HAS_WEATHER_TILE) {
@@ -408,6 +432,49 @@ export default function MapComponent({ siteRows, onSiteClick, selectedSiteId }: 
     }
   }, [featureCollection, mapLoaded])
 
+  // DeckGL Layers
+  const layers = useMemo(
+    () => [
+      layerVisibility.deckglPoints &&
+        new ScatterplotLayer<GeoJSON.Feature<GeoJSON.Point, SiteFeatureProperties>>({
+          id: 'deckgl-scatterplot-layer',
+          data: featureCollection.features,
+          getPosition: (d) => d.geometry.coordinates as [number, number],
+          getFillColor: (d) => {
+            const health = d.properties.health
+            if (health === 'healthy') return [34, 197, 94, 255] // #22c55e
+            if (health === 'warning') return [245, 158, 11, 255] // #f59e0b
+            if (health === 'critical') return [244, 63, 94, 255] // #f43f5e
+            return [56, 189, 248, 255] // #38bdf8 (default)
+          },
+          getRadius: (d) => {
+            const power = d.properties.power || 0
+            if (power < 1000) return 6
+            if (power < 5000) return 8
+            if (power < 12000) return 11
+            return 14
+          },
+          pickable: true,
+          autoHighlight: true,
+          highlightColor: [255, 255, 255, 150],
+          onClick: (info: PickingInfo) => {
+            if (info.object) {
+              const props = (info.object as GeoJSON.Feature<GeoJSON.Point, SiteFeatureProperties>).properties
+              onSiteClickRef.current(Number(props.siteId))
+              if (!popupRef.current) {
+                popupRef.current = new maplibregl.Popup({ closeButton: false, offset: 12 })
+              }
+              popupRef.current
+                .setLngLat(info.coordinate as [number, number])
+                .setHTML(buildPopupHTML(props))
+                .addTo(mapRef.current!)
+            }
+          },
+        }),
+    ],
+    [featureCollection, layerVisibility.deckglPoints, onSiteClickRef, popupRef, mapRef],
+  )
+
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return
     const map = mapRef.current
@@ -496,6 +563,18 @@ export default function MapComponent({ siteRows, onSiteClick, selectedSiteId }: 
     <div className="relative h-full w-full overflow-hidden rounded-[1.25rem]">
       <div ref={mapContainer} className="h-full w-full" />
 
+      <div ref={deckGlRef} className="absolute inset-0 pointer-events-none">
+        {mapLoaded && (
+          <DeckGL
+            viewState={viewState}
+            layers={layers}
+            controller={false}
+            getCursor={() => 'inherit'}
+            pickingRadius={5}
+          />
+        )}
+      </div>
+
       {/* Layer Controls */}
       <div className="absolute left-1 sm:left-3 top-1 sm:top-3 z-10 flex flex-col gap-1 sm:gap-2 max-w-[65vw] sm:max-w-none">
         <div className="rounded-xl border border-white/10 bg-slate-900/90 p-2.5 sm:p-3 backdrop-blur-sm transition-all duration-300 hover:border-emerald-400/30 hover:bg-slate-900/95">
@@ -522,10 +601,16 @@ export default function MapComponent({ siteRows, onSiteClick, selectedSiteId }: 
               color="#22c55e"
             />
             <LayerToggle
-              label="Sites"
+              label="MapLibre Sites"
               checked={layerVisibility.points}
               onChange={() => toggleLayer('points')}
               color="#f59e0b"
+            />
+            <LayerToggle
+              label="DeckGL Sites"
+              checked={layerVisibility.deckglPoints}
+              onChange={() => toggleLayer('deckglPoints')}
+              color="#ef4444"
             />
           </div>
         </div>

@@ -15,13 +15,16 @@ export default defineConfig({
           'vendor-query': ['@tanstack/react-query'],
           // Charting - large, lazy loaded
           'vendor-charts': ['recharts'],
+          // Mapping - lazy loaded with MapComponent
+          'vendor-maplibre': ['maplibre-gl'],
+          'vendor-deck': ['@deck.gl/core', '@deck.gl/react', '@deck.gl/layers'],
           // Utilities
           'vendor-utils': ['date-fns', 'clsx', 'tailwind-merge', 'socket.io-client', 'suncalc', 'axios'],
         },
       },
     },
-    // Increase chunk size warning limit to 800KB (maplibre-gl is large)
-    chunkSizeWarningLimit: 800,
+    // Deck.gl is large but isolated behind the lazy map route/component.
+    chunkSizeWarningLimit: 1200,
   },
   server: {
     host: true,
