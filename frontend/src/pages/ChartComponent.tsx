@@ -25,6 +25,14 @@ function formatMetric(value?: number | null, digits = 0) {
   }).format(value)
 }
 
+// Backend stores power in Watts; auto-scale to kW / MW for display.
+function formatPower(watts?: number | null): string {
+  if (watts === undefined || watts === null || Number.isNaN(watts)) return '--'
+  if (Math.abs(watts) >= 1_000_000) return `${(watts / 1_000_000).toFixed(2)} MW`
+  if (Math.abs(watts) >= 1_000) return `${(watts / 1_000).toFixed(2)} kW`
+  return `${watts.toFixed(0)} W`
+}
+
 function SmartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
 
@@ -37,7 +45,7 @@ function SmartTooltip({ active, payload, label }: any) {
       <div className="space-y-1.5">
         <div className="flex items-center justify-between gap-4">
           <span className="text-xs text-slate-500">Công suất</span>
-          <span className="font-semibold text-cyan-300">{formatMetric(point.power)} W</span>
+          <span className="font-semibold text-cyan-300">{formatPower(point.power)}</span>
         </div>
         <div className="flex items-center justify-between gap-4">
           <span className="text-xs text-slate-500">Sản lượng</span>
@@ -68,16 +76,39 @@ export default function ChartComponent({ data }: ChartProps) {
     )
   }
 
+  // Backend reports power in W. Pick a Y-axis scale that matches the data range
+  // so a 5 kW inverter shows as "5" with a "kW" unit label rather than "5000" raw watts.
+  const peakPower = data.reduce((max, p) => Math.max(max, p.power ?? 0), 0)
+  const yScale = peakPower >= 1_000_000 ? { divisor: 1_000_000, unit: 'MW' }
+    : peakPower >= 1_000 ? { divisor: 1_000, unit: 'kW' }
+    : { divisor: 1, unit: 'W' }
+
+  const formatYTick = (value: number) => {
+    const scaled = value / yScale.divisor
+    if (yScale.divisor === 1) return scaled.toFixed(0)
+    return scaled.toFixed(scaled < 10 ? 2 : 1)
+  }
+
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={data} margin={{ top: 10, right: 16, bottom: 0, left: -12 }}>
+      <LineChart data={data} margin={{ top: 10, right: 16, bottom: 0, left: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#243041" />
         <XAxis
           dataKey="timestamp"
           tickFormatter={(value) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           stroke="#64748b"
         />
-        <YAxis stroke="#64748b" />
+        <YAxis
+          stroke="#64748b"
+          tickFormatter={formatYTick}
+          label={{
+            value: `Công suất (${yScale.unit})`,
+            angle: -90,
+            position: 'insideLeft',
+            style: { textAnchor: 'middle', fill: '#94a3b8', fontSize: 11 },
+            offset: 10,
+          }}
+        />
         <Tooltip content={<SmartTooltip />} />
         <Line
           type="monotone"

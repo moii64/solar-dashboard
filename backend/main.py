@@ -11,8 +11,10 @@ from typing import List, Optional, Any
 from dotenv import load_dotenv
 load_dotenv()
 
-from telegram_notifier import send_telegram_alert
-import asyncio
+try:
+    from backend.telegram_notifier import send_telegram_alert
+except ModuleNotFoundError:
+    from telegram_notifier import send_telegram_alert
 
 import paho.mqtt.client as mqtt
 
@@ -22,7 +24,22 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, text
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
+
+
+def _utc_iso(dt: Optional[datetime]) -> Optional[str]:
+    """Serialize datetime as UTC ISO-8601 with explicit 'Z' suffix.
+
+    SQLite/PostgreSQL store our timestamps as naive UTC. Without this,
+    Pydantic serializes them without a timezone marker and JS Date()
+    on the frontend interprets them as local time, breaking
+    `Date.now() - timestamp` calculations (e.g. stale-data detection).
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat().replace("+00:00", "Z")
 
 try:
     from backend.connectors import (
@@ -77,6 +94,10 @@ class Inverter(Base):
     device_type = Column(String)
     status = Column(String, default="offline")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    # Per-site alert thresholds. Power threshold is in kW, temperature in °C, offline in minutes.
+    alert_temp_max = Column(Float, default=70.0)
+    alert_power_min = Column(Float, default=0.0)
+    alert_offline_mins = Column(Integer, default=5)
 
 
 class InverterData(Base):
@@ -154,6 +175,10 @@ class InverterResponse(InverterCreate):
 
     model_config = {"from_attributes": True}
 
+    @field_serializer("created_at")
+    def _ser_created_at(self, dt: datetime) -> str:
+        return _utc_iso(dt)  # type: ignore[return-value]
+
 
 class InverterDataResponse(BaseModel):
     id: int
@@ -169,6 +194,10 @@ class InverterDataResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+    @field_serializer("timestamp")
+    def _ser_timestamp(self, dt: datetime) -> str:
+        return _utc_iso(dt)  # type: ignore[return-value]
+
 
 class StatsOverviewResponse(BaseModel):
     total_inverters: int
@@ -178,6 +207,10 @@ class StatsOverviewResponse(BaseModel):
     total_energy_today: float
     last_updated: Optional[datetime]
 
+    @field_serializer("last_updated")
+    def _ser_last_updated(self, dt: Optional[datetime]) -> Optional[str]:
+        return _utc_iso(dt)
+
 
 class StatsHistoryPoint(BaseModel):
     timestamp: datetime
@@ -185,6 +218,10 @@ class StatsHistoryPoint(BaseModel):
     power: float = 0.0
     energy_today: float = 0.0
     is_online: Optional[bool] = None
+
+    @field_serializer("timestamp")
+    def _ser_timestamp(self, dt: datetime) -> str:
+        return _utc_iso(dt)  # type: ignore[return-value]
 
 
 class StatsHistoryResponse(BaseModel):
@@ -221,6 +258,10 @@ class WeatherObservationResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+    @field_serializer("observed_at")
+    def _ser_observed_at(self, dt: datetime) -> str:
+        return _utc_iso(dt)  # type: ignore[return-value]
+
 
 class SourceSyncLogResponse(BaseModel):
     id: int
@@ -234,6 +275,14 @@ class SourceSyncLogResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+    @field_serializer("started_at")
+    def _ser_started_at(self, dt: datetime) -> str:
+        return _utc_iso(dt)  # type: ignore[return-value]
+
+    @field_serializer("finished_at")
+    def _ser_finished_at(self, dt: Optional[datetime]) -> Optional[str]:
+        return _utc_iso(dt)
+
 
 class EnergyDataImportRequest(BaseModel):
     source_url: Optional[str] = None
@@ -246,14 +295,178 @@ class EnergyDataImportResponse(BaseModel):
     loaded_from: str
     records_processed: int
     stations: List[str]
-    matched_columns: dict[str, str]
-    sync_log_id: int
+    matched_columns: Dict[str, str]
+    sync_log_id: Optional[int]
 
 
 class ConnectorCapabilityResponse(BaseModel):
     source_name: str
-    auth_requirements: dict[str, Any]
+    auth_requirements: Dict[str, Any]
     implementation_status: str
+
+
+# Inverter catalog for setup guide
+class InverterCatalogEntry(BaseModel):
+    id: str
+    brand: str
+    model: str
+    power_kw: float
+    protocol: str
+    default_port: Optional[int] = None
+    mqtt_topic_pattern: Optional[str] = None
+    api_endpoint: Optional[str] = None
+    setup_steps: List[str]
+    notes: Optional[str] = None
+
+
+# Hardcoded catalog of common inverter models with setup instructions
+# Stored as plain dicts; FastAPI will coerce to InverterCatalogEntry via response_model
+INVERTER_CATALOG: List[Dict[str, Any]] = [
+    {
+        "id": "goodwe-sdt-g2",
+        "brand": "GoodWe",
+        "model": "SDT G2 Series",
+        "power_kw": 5.0,
+        "protocol": "SEMS API",
+        "default_port": 10050,
+        "api_endpoint": "https://semsportal.com/api",
+        "mqtt_topic_pattern": None,
+        "setup_steps": [
+            "1. Đăng ký tài khoản SEMS Portal tại https://semsportal.com",
+            "2. Thêm inverter vào SEMS Portal bằng serial number (mặt sau thiết bị)",
+            "3. Kết nối inverter với mạng internet qua Ethernet hoặc WiFi",
+            "4. Đợi inverter xuất hiện trong SEMS Portal (thường mất 1-5 phút)",
+            "5. Tạo API token trong Settings → API Key",
+            "6. Copy API token vào hệ thống Solar Dashboard",
+            "7. Điền Serial Number và Station ID từ SEMS Portal",
+            "8. Test connection để xác nhận dữ liệu nhận được",
+        ],
+        "notes": "GoodWe SDT G2 hỗ trợ cả Ethernet và WiFi. Nên dùng Ethernet cho độ ổn định cao hơn.",
+    },
+    {
+        "id": "huawei-sun2000",
+        "brand": "Huawei",
+        "model": "SUN2000 Series",
+        "power_kw": 5.0,
+        "protocol": "Modbus TCP",
+        "default_port": 502,
+        "api_endpoint": None,
+        "mqtt_topic_pattern": None,
+        "setup_steps": [
+            "1. Kết nối máy tính với inverter qua Ethernet (cùng mạng LAN)",
+            "2. Mở trình duyệt, truy cập http://192.168.1.1 (default IP inverter)",
+            "3. Login (default: admin/Admin@123)",
+            "4. Vào Settings → Network → Modbus TCP",
+            "5. Bật Modbus TCP, port mặc định 502",
+            "6. Lưu cấu hình và reboot inverter",
+            "7. Trong Solar Dashboard, điền IP inverter và port 502",
+            "8. Điền Device ID (thường là 1)",
+            "9. Test connection để đọc dữ liệu",
+        ],
+        "notes": "Huawei SUN2000 dùng Modbus TCP. Đảm bảo firewall không chặn port 502.",
+    },
+    {
+        "id": "sungrow-sg5ktl",
+        "brand": "Sungrow",
+        "model": "SG5KTL-M / SH5K-20",
+        "power_kw": 5.0,
+        "protocol": "iSolarCloud / MQTT",
+        "default_port": 8899,
+        "api_endpoint": None,
+        "mqtt_topic_pattern": "/solar/{serial}/telemetry",
+        "setup_steps": [
+            "1. Đăng ký tài khoản iSolarCloud tại https://www.isolarcloud.com",
+            "2. Thêm inverter bằng serial number",
+            "3. Cấu hình MQTT broker trong iSolarCloud Settings",
+            "4. Lấy MQTT broker address, port, username, password",
+            "5. Trong Solar Dashboard, chọn protocol MQTT",
+            "6. Điền MQTT broker info: host, port, username, password",
+            "7. Topic pattern: /solar/{serial}/telemetry",
+            "8. Test connection",
+        ],
+        "notes": "Sungrow hỗ trợ cả iSolarCloud API và MQTT. MQTT realtime hơn.",
+    },
+    {
+        "id": "sma-sunny-boy",
+        "brand": "SMA",
+        "model": "Sunny Boy 5.0",
+        "power_kw": 5.0,
+        "protocol": "SMA Speedwire / Modbus",
+        "default_port": 502,
+        "api_endpoint": "https://www.sunnyportal.com",
+        "mqtt_topic_pattern": None,
+        "setup_steps": [
+            "1. Kết nối Sunny WebBox hoặc Sunny Home Manager với inverter",
+            "2. Đăng ký tài khoản Sunny Portal",
+            "3. Thêm WebBox vào Sunny Portal",
+            "4. Trong Solar Dashboard, dùng SMA Speedwire hoặc Modbus TCP",
+            "5. Nếu Modbus: port 502, Device ID = 1",
+            "6. Nếu Sunny Portal API: lấy API key từ Sunny Portal",
+            "7. Test connection",
+        ],
+        "notes": "SMA có nhiều cách kết nối. Sunny WebBox cho độ ổn định cao nhất.",
+    },
+    {
+        "id": "fronius-galvo",
+        "brand": "Fronius",
+        "model": "Galvo / Primo",
+        "power_kw": 5.0,
+        "protocol": "Fronius Solar API / Modbus",
+        "default_port": 502,
+        "api_endpoint": "http://{ip}/solar_api/v1/GetInverterRealtimeData.cgi",
+        "mqtt_topic_pattern": None,
+        "setup_steps": [
+            "1. Kết nối máy tính với inverter qua Ethernet",
+            "2. Truy cập http://192.168.0.1 (default IP)",
+            "3. Login (default: admin)",
+            "4. Vào Settings → Communication → Fronius Solar API",
+            "5. Bật Solar API, port mặc định 80",
+            "6. Trong Solar Dashboard, chọn protocol Fronius Solar API",
+            "7. Điền IP inverter",
+            "8. Test connection",
+        ],
+        "notes": "Fronius Solar API đơn giản hơn Modbus. Port mặc định 80 (HTTP).",
+    },
+    {
+        "id": "solaredge-optim",
+        "brand": "SolarEdge",
+        "model": "SE5000H",
+        "power_kw": 5.0,
+        "protocol": "SolarEdge Monitoring API",
+        "default_port": None,
+        "api_endpoint": "https://monitoringapi.solaredge.com",
+        "mqtt_topic_pattern": None,
+        "setup_steps": [
+            "1. Đăng ký tài khoản SolarEdge Monitoring Portal",
+            "2. Thêm inverter bằng serial number",
+            "3. Tạo API key trong Settings → API Keys",
+            "4. Trong Solar Dashboard, chọn protocol SolarEdge API",
+            "5. Điền API key và Site ID từ SolarEdge Portal",
+            "6. Test connection",
+        ],
+        "notes": "SolarEdge dùng cloud API, không kết nối trực tiếp local.",
+    },
+    {
+        "id": "generic-modbus",
+        "brand": "Generic",
+        "model": "Modbus TCP Inverter",
+        "power_kw": 5.0,
+        "protocol": "Modbus TCP",
+        "default_port": 502,
+        "api_endpoint": None,
+        "mqtt_topic_pattern": None,
+        "setup_steps": [
+            "1. Kết nối máy tính với inverter qua Ethernet",
+            "2. Xác định IP inverter (thường in trên mặt sau thiết bị)",
+            "3. Ping IP để xác nhận kết nối",
+            "4. Trong Solar Dashboard, chọn protocol Modbus TCP",
+            "5. Điền IP inverter, port (mặc định 502), Device ID (thường 1)",
+            "6. Test connection",
+            "7. Nếu fail, kiểm tra Modbus register mapping trong manual",
+        ],
+        "notes": "Generic Modbus cần register mapping cụ thể theo từng hãng. Xem manual inverter.",
+    },
+]
 
 
 class ConnectionManager:
@@ -309,7 +522,7 @@ def serialize_reading(reading: InverterData) -> dict:
         {
             "id": reading.id,
             "inverter_id": reading.inverter_id,
-            "timestamp": reading.timestamp,
+            "timestamp": _utc_iso(reading.timestamp),
             "voltage": reading.voltage,
             "current": reading.current,
             "power": reading.power,
@@ -476,6 +689,8 @@ def compute_stats_overview(db: Session) -> dict:
         "offline_inverters": total_inverters - online_inverters,
         "total_power": round(total_power, 2),
         "total_energy_today": round(total_energy_today, 2),
+        # Keep raw datetime so Pydantic StatsOverviewResponse.field_serializer can convert it
+        # for HTTP responses, and convert manually when broadcast over WebSocket.
         "last_updated": last_updated,
     }
 
@@ -529,10 +744,12 @@ def persist_telemetry(db: Session, inverter: Inverter, payload: TelemetryReading
 
 
 def build_telemetry_message(db: Session, reading: InverterData) -> dict:
+    overview = compute_stats_overview(db)
+    overview["last_updated"] = _utc_iso(overview.get("last_updated"))
     return {
         "type": "telemetry",
         "reading": serialize_reading(reading),
-        "stats_overview": jsonable_encoder(compute_stats_overview(db)),
+        "stats_overview": jsonable_encoder(overview),
     }
 
 
@@ -764,8 +981,37 @@ async def simulated_telemetry_loop():
         await asyncio.sleep(TELEMETRY_INTERVAL_SECONDS)
 
 
+def _ensure_alert_columns():
+    """Lightweight migration: add alert_* columns to legacy `inverters` tables.
+
+    create_all() does not ALTER existing tables, so deployments created before
+    the alert thresholds were added would otherwise be missing these columns.
+    """
+    column_specs = {
+        "alert_temp_max": "FLOAT DEFAULT 70.0",
+        "alert_power_min": "FLOAT DEFAULT 0.0",
+        "alert_offline_mins": "INTEGER DEFAULT 5",
+    }
+    with engine.begin() as conn:
+        existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(inverters)").fetchall()} if is_sqlite else None
+        if existing is None:
+            existing = {
+                row[0]
+                for row in conn.exec_driver_sql(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name='inverters'"
+                ).fetchall()
+            }
+        for name, ddl in column_specs.items():
+            if name not in existing:
+                conn.exec_driver_sql(f"ALTER TABLE inverters ADD COLUMN {name} {ddl}")
+
+
 async def on_startup():
     Base.metadata.create_all(bind=engine)
+    try:
+        _ensure_alert_columns()
+    except Exception as exc:  # pragma: no cover - best-effort migration
+        logger.warning("alert column migration skipped: %s", exc)
     app.state.event_loop = asyncio.get_running_loop()
 
     db = SessionLocal()
@@ -842,6 +1088,29 @@ def healthz(db: Session = Depends(get_db)):
 @app.get("/inverters", response_model=List[InverterResponse])
 def list_inverters(db: Session = Depends(get_db)):
     return db.query(Inverter).all()
+
+
+@app.get("/inverters/catalog", response_model=List[InverterCatalogEntry])
+def get_inverter_catalog(
+    search: Optional[str] = None,
+    brand: Optional[str] = None,
+    protocol: Optional[str] = None,
+):
+    """Return inverter catalog with optional search/filter.
+
+    - search: filter by model name or brand (case-insensitive)
+    - brand: filter by exact brand name
+    - protocol: filter by exact protocol name
+    """
+    filtered = INVERTER_CATALOG
+    if search:
+        search_lower = search.lower()
+        filtered = [e for e in filtered if search_lower in e["brand"].lower() or search_lower in e["model"].lower()]
+    if brand:
+        filtered = [e for e in filtered if e["brand"].lower() == brand.lower()]
+    if protocol:
+        filtered = [e for e in filtered if e["protocol"].lower() == protocol.lower()]
+    return filtered
 
 
 @app.post("/inverters", response_model=InverterResponse)

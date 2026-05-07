@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
+import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import SiteDetailPanel from '../components/SiteDetailPanel'
 import InverterModelForm from '../components/InverterModelForm'
-import { IconBolt, IconBattery, IconSun, IconThermometer, IconActivity, IconFilter, IconTrash, IconRefresh, IconPlus, IconArrowRight, IconCheckCircle, IconAlertTriangle, IconXCircle, IconChart, IconMap } from '../components/Icons'
+import { IconBolt, IconBattery, IconSun, IconThermometer, IconActivity, IconFilter, IconTrash, IconRefresh, IconPlus, IconArrowRight, IconCheckCircle, IconAlertTriangle, IconXCircle, IconChart, IconMap, IconBook } from '../components/Icons'
 
 const Chart = lazy(() => import('./ChartComponent'))
 const MapComponent = lazy(() => import('./MapComponent'))
@@ -52,6 +53,12 @@ type StatsHistoryPoint = {
   is_online?: boolean | null
 }
 
+type StatsHistoryResponse = {
+  scope: string
+  hours: number
+  points: StatsHistoryPoint[]
+}
+
 type FormData = {
   name: string
   location: string
@@ -65,6 +72,43 @@ type RealtimeState = 'connecting' | 'live' | 'offline'
 type SiteHealth = 'healthy' | 'warning' | 'critical'
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) || '/api'
+
+// Resolve the realtime WebSocket URL. Order of preference:
+//   1. Explicit VITE_WS_URL (e.g. wss://api.solarvn.dpdns.org/ws/inverters)
+//   2. Derive from VITE_API_BASE (http(s):// → ws(s)://, append /ws/inverters)
+//   3. Fall back to same-origin /ws/inverters (uses Vite proxy in dev)
+function resolveWsUrl(): string {
+  const explicit = (import.meta.env.VITE_WS_URL as string | undefined)?.trim()
+  if (explicit) return explicit
+  const apiBase = (import.meta.env.VITE_API_BASE as string | undefined)?.trim()
+  if (apiBase && /^https?:\/\//.test(apiBase)) {
+    return apiBase.replace(/^http/, 'ws').replace(/\/$/, '') + '/ws/inverters'
+  }
+  if (typeof window !== 'undefined') {
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    return `${proto}//${window.location.host}/ws/inverters`
+  }
+  return ''
+}
+
+// Backend stores power in Watts and energy in kWh.
+// These helpers smart-format with the appropriate scale.
+function formatPowerW(watts?: number | null, digits = 2): string {
+  const w = Number.isFinite(watts as number) ? (watts as number) : 0
+  if (Math.abs(w) >= 1_000_000) return `${(w / 1_000_000).toFixed(digits)} MW`
+  if (Math.abs(w) >= 1_000) return `${(w / 1_000).toFixed(digits)} kW`
+  return `${w.toFixed(0)} W`
+}
+
+function formatEnergyKWh(kwh?: number | null, digits = 1): string {
+  const v = Number.isFinite(kwh as number) ? (kwh as number) : 0
+  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(digits)} GWh`
+  if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(digits)} MWh`
+  return `${v.toFixed(digits)} kWh`
+}
+
+// Default warning threshold for power health when alert_power_min is not configured.
+const DEFAULT_POWER_MIN_KW = 0.8
 
 // Design C: Card component with glow effect
 function StatCard({ 
@@ -143,8 +187,10 @@ function SiteListItem({
     critical: 'text-rose-400',
   }
   
-  const powerPercent = latest?.power ? Math.min((latest.power / 300) * 100, 100) : 0
-  const efficiency = latest?.power && latest?.power > 0 ? Math.min((latest.power / 250) * 100, 100) : 0
+  // Normalize against nominal 5 kW inverter (5000 W) so the visual bars/percentages stay in [0, 100].
+  const NOMINAL_POWER_W = 5000
+  const powerPercent = latest?.power ? Math.min((latest.power / NOMINAL_POWER_W) * 100, 100) : 0
+  const efficiency = latest?.power && latest?.power > 0 ? Math.min((latest.power / NOMINAL_POWER_W) * 100, 100) : 0
   
   return (
     <div 
@@ -161,7 +207,7 @@ function SiteListItem({
           <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${healthDot[health]} animate-pulse`}></span>
         </div>
         <div className="flex items-center justify-between mt-2">
-          <span className={`text-xs font-medium ${healthText[health]} transition-all duration-200 group-hover:scale-105 transform origin-left`}>{latest?.power ? `${latest.power} kW` : '--'}</span>
+          <span className={`text-xs font-medium ${healthText[health]} transition-all duration-200 group-hover:scale-105 transform origin-left`}>{latest?.power !== undefined && latest?.power !== null ? formatPowerW(latest.power) : '--'}</span>
           <span className={`text-xs transition-colors ${isStaleSite ? 'text-amber-400' : 'text-slate-500 group-hover:text-slate-400'}`}>
             {isStaleSite ? `cũ ${lastSeenLabel}` : efficiency.toFixed(1) + '%'}
           </span>
@@ -213,6 +259,7 @@ function EmptyState({ message, compact = false }: { message: string; compact?: b
 }
 
 export default function DashboardPage() {
+  const navigate = useNavigate()
   const [sites, setSites] = useState<Site[]>([])
   const [selectedSite, setSelectedSite] = useState<Site | null>(null)
   const [statsOverview, setStatsOverview] = useState<StatsOverview | null>(null)
@@ -240,7 +287,12 @@ export default function DashboardPage() {
   const getSiteHealth = (site: Site, latest: SiteTelemetry | null): SiteHealth => {
     if (!latest) return site.status === 'online' ? 'warning' : 'critical'
     if (!latest.is_online) return 'critical'
-    if ((latest.power || 0) < 800) return 'warning'
+    // alert_power_min is configured in kW (matches the SiteDetailPanel form label).
+    // Telemetry power is stored in W, so convert before comparing.
+    const powerKW = (latest.power || 0) / 1000
+    const powerMinKW = site.alert_power_min ?? 0
+    const threshold = powerMinKW > 0 ? powerMinKW : DEFAULT_POWER_MIN_KW
+    if (powerKW < threshold) return 'warning'
     return 'healthy'
   }
 
@@ -287,7 +339,8 @@ export default function DashboardPage() {
   const fetchHistory = async (id: number, hours: number = selectedHours) => {
     try {
       const resp = await axios.get(`${API_BASE}/stats/history?inverter_id=${id}&hours=${hours}`)
-      setHistoryPoints(resp.data as StatsHistoryPoint[])
+      const data = resp.data as StatsHistoryResponse
+      setHistoryPoints(Array.isArray(data?.points) ? data.points : [])
     } catch {
       setHistoryPoints([])
     }
@@ -336,6 +389,115 @@ export default function DashboardPage() {
       fetchHistory(selectedSite.id, selectedHours)
     }
   }, [selectedSite, selectedHours])
+
+  // Realtime telemetry via WebSocket. Server pushes { type: 'telemetry', reading, stats_overview }
+  // on every ingest (HTTP /telemetry/readings or MQTT consumer). Falls back to the 30s poll on disconnect.
+  useEffect(() => {
+    const url = resolveWsUrl()
+    if (!url) {
+      setRealtimeState('offline')
+      return
+    }
+
+    let socket: WebSocket | null = null
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+    let cancelled = false
+    let attempt = 0
+
+    const connect = () => {
+      if (cancelled) return
+      setRealtimeState('connecting')
+      try {
+        socket = new WebSocket(url)
+      } catch (err) {
+        console.warn('WebSocket init failed:', err)
+        setRealtimeState('offline')
+        scheduleReconnect()
+        return
+      }
+
+      socket.onopen = () => {
+        attempt = 0
+        setRealtimeState('live')
+      }
+
+      socket.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data)
+          if (message?.type !== 'telemetry') return
+
+          const reading = message.reading as SiteTelemetry | undefined
+          if (reading?.inverter_id) {
+            setLatestBySite((prev) => ({ ...prev, [reading.inverter_id]: reading }))
+          }
+
+          if (message.stats_overview) {
+            setStatsOverview(message.stats_overview as StatsOverview)
+          }
+
+          // If user has a site selected and this reading belongs to it, append to history without a roundtrip.
+          if (
+            reading?.inverter_id &&
+            selectedSiteIdRef.current === reading.inverter_id &&
+            reading.timestamp
+          ) {
+            setHistoryPoints((prev) => {
+              const next = [
+                ...prev,
+                {
+                  timestamp: reading.timestamp,
+                  inverter_id: reading.inverter_id,
+                  power: reading.power ?? 0,
+                  energy_today: reading.energy_today ?? 0,
+                  is_online: reading.is_online ?? null,
+                },
+              ]
+              return next.length > 500 ? next.slice(next.length - 500) : next
+            })
+          }
+        } catch (err) {
+          console.warn('WebSocket message parse failed:', err)
+        }
+      }
+
+      socket.onerror = () => {
+        // onclose will run right after; let it handle reconnect.
+      }
+
+      socket.onclose = () => {
+        socket = null
+        if (cancelled) return
+        setRealtimeState('offline')
+        scheduleReconnect()
+      }
+    }
+
+    const scheduleReconnect = () => {
+      if (cancelled || reconnectTimer) return
+      attempt += 1
+      const delay = Math.min(30_000, 1000 * Math.pow(2, attempt - 1))
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null
+        connect()
+      }, delay)
+    }
+
+    connect()
+
+    return () => {
+      cancelled = true
+      if (reconnectTimer) clearTimeout(reconnectTimer)
+      if (socket) {
+        socket.onopen = socket.onmessage = socket.onerror = socket.onclose = null
+        try { socket.close() } catch { /* ignore */ }
+      }
+    }
+  }, [])
+
+  // Keep selectedSiteIdRef in sync so the WebSocket handler can decide whether to append history.
+  useEffect(() => {
+    selectedSiteIdRef.current = selectedSite?.id ?? null
+  }, [selectedSite])
 
   // Compute site rows
   const siteRows = useMemo(() => {
@@ -407,10 +569,11 @@ export default function DashboardPage() {
       .map((row) => {
         const tempMax = row.site.alert_temp_max ?? 70.0
         const offlineMins = row.site.alert_offline_mins ?? 5
-        const powerMin = row.site.alert_power_min ?? 0
+        const powerMinKW = row.site.alert_power_min ?? 0
 
         const lastSeen = row.latest?.timestamp ? new Date(row.latest.timestamp) : null
         const minutesOld = lastSeen ? (Date.now() - lastSeen.getTime()) / 60000 : Infinity
+        const currentPowerKW = (row.currentPower ?? 0) / 1000
 
         if (row.health === 'critical') {
           return { level: 'critical' as const, site: row.site.name, message: 'Mất kết nối hoặc offline', action: 'Kiểm tra gateway / nguồn AC' }
@@ -422,10 +585,10 @@ export default function DashboardPage() {
           return { level: 'warning' as const, site: row.site.name, message: `Nhiệt độ inverter cao (${row.temperature}°C > ${tempMax}°C)`, action: 'Kiểm tra thông gió / tải' }
         }
         if (row.health === 'warning') {
-          if (powerMin > 0 && (row.currentPower ?? 0) < powerMin) {
-            return { level: 'warning' as const, site: row.site.name, message: `Công suất thấp hơn ngưỡng cảnh báo (< ${powerMin} kW)`, action: 'So sánh irradiance / kiểm tra string' }
+          if (powerMinKW > 0 && currentPowerKW < powerMinKW) {
+            return { level: 'warning' as const, site: row.site.name, message: `Công suất thấp hơn ngưỡng cảnh báo (< ${powerMinKW} kW)`, action: 'So sánh irradiance / kiểm tra string' }
           }
-          if (powerMin === 0) {
+          if (powerMinKW === 0) {
             return { level: 'warning' as const, site: row.site.name, message: 'Công suất thấp hơn kỳ vọng', action: 'So sánh irradiance / kiểm tra string' }
           }
         }
@@ -451,7 +614,9 @@ export default function DashboardPage() {
 
     return seed
   }, [siteRows])
-  const totalPower = (statsOverview?.total_power || 0) / 1000
+  // Backend stores total_power in W and total_energy_today in kWh.
+  // Display layer uses formatPowerW / formatEnergyKWh which auto-scale to kW/MW or kWh/MWh.
+  const totalEnergyKWh = statsOverview?.total_energy_today || 0
   const hasHistoryData = historyPoints.length > 0
   const [chartFadeTick, setChartFadeTick] = useState(0)
 
@@ -509,9 +674,24 @@ export default function DashboardPage() {
           </div>
           
           <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
-            <div className="dc-live-badge animate-pulse">
-              <span className="dot"></span>
-              <span className="text-xs font-medium text-emerald-400">Live</span>
+            <div
+              className={`dc-live-badge ${realtimeState === 'live' ? 'animate-pulse' : ''}`}
+              title={
+                realtimeState === 'live'
+                  ? 'WebSocket realtime đang hoạt động'
+                  : realtimeState === 'connecting'
+                    ? 'Đang kết nối realtime...'
+                    : 'Mất kết nối realtime, đang dùng polling 30s'
+              }
+            >
+              <span
+                className={`dot ${realtimeState === 'live' ? '' : realtimeState === 'connecting' ? 'opacity-60' : '!bg-amber-400'}`}
+              ></span>
+              <span
+                className={`text-xs font-medium ${realtimeState === 'live' ? 'text-emerald-400' : realtimeState === 'connecting' ? 'text-slate-400' : 'text-amber-400'}`}
+              >
+                {realtimeState === 'live' ? 'Live' : realtimeState === 'connecting' ? 'Connecting' : 'Polling'}
+              </span>
             </div>
             <button 
               className="h-9 rounded-lg bg-white/[0.05] border border-white/10 flex items-center gap-2 px-3 text-slate-400 hover:text-white hover:bg-white/[0.1] hover:border-white/20 transition-all duration-300 active:scale-95"
@@ -523,6 +703,14 @@ export default function DashboardPage() {
             >
               <IconRefresh size={18} />
               <span className="text-xs font-medium hidden sm:inline">{countdown}s</span>
+            </button>
+            <button
+              className="h-9 rounded-lg bg-cyan-500/10 border border-cyan-400/20 flex items-center gap-2 px-3 text-cyan-300 hover:text-cyan-200 hover:bg-cyan-500/20 transition-all duration-300 active:scale-95"
+              onClick={() => navigate('/inverters-guide')}
+              title="Hướng dẫn setup inverter"
+            >
+              <IconBook size={18} />
+              <span className="text-xs font-medium hidden sm:inline">Hướng dẫn</span>
             </button>
             <button className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-white font-semibold text-sm transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/20 active:scale-95">
               M
@@ -552,12 +740,12 @@ export default function DashboardPage() {
               <div className="h-4 w-px bg-dark-border hidden sm:block" />
               <div className="flex items-center gap-2">
                 <IconBolt size={14} className="text-emerald-400" />
-                <span className="text-sm text-slate-300 font-medium">{totalPower.toFixed(1)} MW</span>
+                <span className="text-sm text-slate-300 font-medium">{formatPowerW((statsOverview?.total_power || 0))}</span>
               </div>
               <div className="h-4 w-px bg-dark-border hidden sm:block" />
               <div className="flex items-center gap-2">
                 <IconBattery size={14} className="text-purple-400" />
-                <span className="text-sm text-slate-300 font-medium">{(statsOverview?.total_energy_today || 0).toFixed(1)} MWh</span>
+                <span className="text-sm text-slate-300 font-medium">{formatEnergyKWh(totalEnergyKWh)}</span>
               </div>
               <div className="h-4 w-px bg-dark-border hidden sm:block" />
               <div className="flex items-center gap-2">
@@ -578,7 +766,7 @@ export default function DashboardPage() {
                 <div key={region} className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
                   <p className="text-xs uppercase tracking-wide text-slate-500">{region}</p>
                   <div className="mt-2 flex items-end justify-between">
-                    <p className="text-lg font-semibold text-white">{(stat.power / 1000).toFixed(1)} MW</p>
+                    <p className="text-lg font-semibold text-white">{formatPowerW(stat.power)}</p>
                     <p className="text-xs text-slate-400">{stat.online}/{stat.sites} online</p>
                   </div>
                 </div>
@@ -600,7 +788,7 @@ export default function DashboardPage() {
               <StatCard
                 icon={<IconSun size={24} className="text-blue-400" />}
                 title="Tổng công suất"
-                value={`${totalPower.toFixed(1)} MW`}
+                value={formatPowerW((statsOverview?.total_power || 0))}
                 subtitle="so với hôm qua"
                 change="+8.2%"
                 changeType="up"
@@ -609,7 +797,7 @@ export default function DashboardPage() {
               <StatCard
                 icon={<IconBattery size={24} className="text-purple-400" />}
                 title="Sản lượng hôm nay"
-                value={`${(statsOverview?.total_energy_today || 0).toFixed(1)} MWh`}
+                value={formatEnergyKWh(totalEnergyKWh)}
                 subtitle="so với hôm qua"
                 change="+12.5%"
                 changeType="up"
@@ -665,7 +853,7 @@ export default function DashboardPage() {
                     <p className={`text-2xl font-bold ${trendStats.direction === 'down' ? 'text-rose-300' : trendStats.direction === 'up' ? 'text-emerald-300' : 'text-slate-200'}`}>
                       {trendStats.direction === 'up' ? '↗' : trendStats.direction === 'down' ? '↘' : '→'} {Math.abs(trendStats.deltaPercent).toFixed(1)}%
                     </p>
-                    <p className="text-xs text-slate-500 mt-1">Avg {trendStats.avgPower.toFixed(0)} kW • Peak {trendStats.peakPower.toFixed(0)} kW</p>
+                    <p className="text-xs text-slate-500 mt-1">Avg {formatPowerW(trendStats.avgPower)} • Peak {formatPowerW(trendStats.peakPower)}</p>
                   </div>
                   <span className="rounded-full bg-white/[0.04] border border-white/10 px-3 py-1 text-xs text-slate-300">{selectedHours}h</span>
                 </div>
@@ -787,7 +975,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                         <p className="text-[10px] uppercase tracking-wide text-slate-500">Công suất</p>
-                        <p className="mt-1 text-lg font-semibold text-cyan-300">{totalPower.toFixed(1)} MW</p>
+                        <p className="mt-1 text-lg font-semibold text-cyan-300">{formatPowerW((statsOverview?.total_power || 0))}</p>
                       </div>
                     </div>
                     <p className="text-xs text-slate-500">Gợi ý: thêm site mới để theo dõi theo cụm và hiển thị heatmap đầy đủ.</p>

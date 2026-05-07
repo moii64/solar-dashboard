@@ -265,7 +265,7 @@ export default function SiteDetailPanel({
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <DetailCard label="Công suất hiện tại" value={`${formatMetric(latest?.power)} W`} accent="cyan" />
+                <DetailCard label="Công suất hiện tại" value={formatPower(latest?.power)} accent="cyan" />
                 <DetailCard label="Sản lượng hôm nay" value={`${formatMetric(latest?.energy_today, 2)} kWh`} accent="amber" />
                 <DetailCard label="Điện áp" value={latest?.voltage ? `${formatMetric(latest.voltage, 1)} V` : 'N/A'} />
                 <DetailCard label="Dòng điện" value={latest?.current ? `${formatMetric(latest.current, 1)} A` : 'N/A'} />
@@ -318,6 +318,14 @@ function formatMetric(value?: number | null, digits = 0) {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   }).format(value)
+}
+
+// Backend stores power in Watts; auto-scale to W / kW / MW for display.
+function formatPower(watts?: number | null, digits = 2): string {
+  if (watts === undefined || watts === null || Number.isNaN(watts)) return 'N/A'
+  if (Math.abs(watts) >= 1_000_000) return `${(watts / 1_000_000).toFixed(digits)} MW`
+  if (Math.abs(watts) >= 1_000) return `${(watts / 1_000).toFixed(digits)} kW`
+  return `${watts.toFixed(0)} W`
 }
 
 function formatDateTime(value?: string | null) {
