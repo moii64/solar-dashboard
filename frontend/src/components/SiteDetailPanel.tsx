@@ -26,6 +26,7 @@ type SiteTelemetry = {
   temperature?: number
   error_code?: string | null
   is_online?: boolean
+  source?: string
 }
 
 type SiteHealth = 'healthy' | 'warning' | 'critical'
@@ -252,9 +253,14 @@ export default function SiteDetailPanel({
                   <span className={`h-3 w-3 rounded-full ${colors.dot}`} />
                   <span className="text-sm font-medium text-slate-200">{colors.label}</span>
                 </div>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${latest?.is_online === false ? 'bg-rose-500/15 text-rose-300' : 'bg-emerald-500/15 text-emerald-300'}`}>
-                  {latest?.is_online === false ? 'Offline' : 'Online'}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium border ${latest?.source === 'mqtt' ? 'bg-blue-500/10 text-blue-300 border-blue-400/20' : latest?.source === 'http' ? 'bg-emerald-500/10 text-emerald-300 border-emerald-400/20' : 'bg-amber-500/10 text-amber-300 border-amber-400/20'}`}>
+                    {latest?.source === 'mqtt' ? 'MQTT' : latest?.source === 'http' ? 'HTTP' : latest?.source === 'simulated' ? 'Sim' : '?'}
+                  </span>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${latest?.is_online === false ? 'bg-rose-500/15 text-rose-300' : 'bg-emerald-500/15 text-emerald-300'}`}>
+                    {latest?.is_online === false ? 'Offline' : 'Online'}
+                  </span>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

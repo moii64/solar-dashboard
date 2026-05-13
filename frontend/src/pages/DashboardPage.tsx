@@ -34,6 +34,7 @@ type SiteTelemetry = {
   temperature?: number
   error_code?: string | null
   is_online?: boolean
+  source?: string
 }
 
 type StatsOverview = {
@@ -204,6 +205,9 @@ function SiteListItem({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="font-medium text-white text-sm truncate group-hover:text-emerald-300 transition-colors duration-200">{site.name}</span>
+          <span className={`rounded-full px-1.5 py-[1px] text-[9px] font-medium border leading-none ${latest?.source === 'mqtt' ? 'bg-blue-500/10 text-blue-300 border-blue-400/20' : latest?.source === 'http' ? 'bg-emerald-500/10 text-emerald-300 border-emerald-400/20' : 'bg-amber-500/10 text-amber-300 border-amber-400/20'}`}>
+            {latest?.source === 'mqtt' ? 'MQTT' : latest?.source === 'http' ? 'HTTP' : latest?.source === 'simulated' ? 'Sim' : '?'}
+          </span>
           <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${healthDot[health]} animate-pulse`}></span>
         </div>
         <div className="flex items-center justify-between mt-2">

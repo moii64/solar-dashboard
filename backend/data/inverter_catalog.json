@@ -1,0 +1,146 @@
+[
+  {
+    "id": "goodwe-sdt-g2",
+    "brand": "GoodWe",
+    "model": "SDT G2 Series",
+    "power_kw": 5.0,
+    "protocol": "SEMS API",
+    "default_port": 10050,
+    "api_endpoint": "https://semsportal.com/api",
+    "mqtt_topic_pattern": null,
+    "setup_steps": [
+      "1. Dang ky tai khoan SEMS Portal tai https://semsportal.com",
+      "2. Them inverter vao SEMS Portal bang serial number (mat sau thiet bi)",
+      "3. Ket noi inverter voi mang internet qua Ethernet hoac WiFi",
+      "4. Doi inverter xuat hien trong SEMS Portal (thuong mat 1-5 phut)",
+      "5. Tao API token trong Settings -> API Key",
+      "6. Copy API token vao he thong Solar Dashboard",
+      "7. Dien Serial Number va Station ID tu SEMS Portal",
+      "8. Test connection de xac nhan du lieu nhan duoc"
+    ],
+    "notes": "GoodWe SDT G2 ho tro ca Ethernet va WiFi. Nen dung Ethernet cho do on dinh cao hon."
+  },
+  {
+    "id": "huawei-sun2000",
+    "brand": "Huawei",
+    "model": "SUN2000 Series",
+    "power_kw": 5.0,
+    "protocol": "Modbus TCP",
+    "default_port": 502,
+    "api_endpoint": null,
+    "mqtt_topic_pattern": null,
+    "setup_steps": [
+      "1. Ket noi may tinh voi inverter qua Ethernet (cung mang LAN)",
+      "2. Mo trinh duyet, truy cap http://192.168.1.1 (default IP inverter)",
+      "3. Login (default: admin/Admin@123)",
+      "4. Vao Settings -> Network -> Modbus TCP",
+      "5. Bat Modbus TCP, port mac dinh 502",
+      "6. Luu cau hinh va reboot inverter",
+      "7. Trong Solar Dashboard, dien IP inverter va port 502",
+      "8. Dien Device ID (thuong la 1)",
+      "9. Test connection de doc du lieu"
+    ],
+    "notes": "Huawei SUN2000 dung Modbus TCP. Dam bao firewall khong chan port 502."
+  },
+  {
+    "id": "sungrow-sg5ktl",
+    "brand": "Sungrow",
+    "model": "SG5KTL-M / SH5K-20",
+    "power_kw": 5.0,
+    "protocol": "iSolarCloud / MQTT",
+    "default_port": 8899,
+    "api_endpoint": null,
+    "mqtt_topic_pattern": "/solar/{serial}/telemetry",
+    "setup_steps": [
+      "1. Dang ky tai khoan iSolarCloud tai https://www.isolarcloud.com",
+      "2. Them inverter bang serial number",
+      "3. Cau hinh MQTT broker trong iSolarCloud Settings",
+      "4. Lay MQTT broker address, port, username, password",
+      "5. Trong Solar Dashboard, chon protocol MQTT",
+      "6. Dien MQTT broker info: host, port, username, password",
+      "7. Topic pattern: /solar/{serial}/telemetry",
+      "8. Test connection"
+    ],
+    "notes": "Sungrow ho tro ca iSolarCloud API va MQTT. MQTT realtime hon."
+  },
+  {
+    "id": "sma-sunny-boy",
+    "brand": "SMA",
+    "model": "Sunny Boy 5.0",
+    "power_kw": 5.0,
+    "protocol": "SMA Speedwire / Modbus",
+    "default_port": 502,
+    "api_endpoint": "https://www.sunnyportal.com",
+    "mqtt_topic_pattern": null,
+    "setup_steps": [
+      "1. Ket noi Sunny WebBox hoac Sunny Home Manager voi inverter",
+      "2. Dang ky tai khoan Sunny Portal",
+      "3. Them WebBox vao Sunny Portal",
+      "4. Trong Solar Dashboard, dung SMA Speedwire hoac Modbus TCP",
+      "5. Neu Modbus: port 502, Device ID = 1",
+      "6. Neu Sunny Portal API: lay API key tu Sunny Portal",
+      "7. Test connection"
+    ],
+    "notes": "SMA co nhieu cach ket noi. Sunny WebBox cho do on dinh cao nhat."
+  },
+  {
+    "id": "fronius-galvo",
+    "brand": "Fronius",
+    "model": "Galvo / Primo",
+    "power_kw": 5.0,
+    "protocol": "Fronius Solar API / Modbus",
+    "default_port": 502,
+    "api_endpoint": "http://{ip}/solar_api/v1/GetInverterRealtimeData.cgi",
+    "mqtt_topic_pattern": null,
+    "setup_steps": [
+      "1. Ket noi may tinh voi inverter qua Ethernet",
+      "2. Truy cap http://192.168.0.1 (default IP)",
+      "3. Login (default: admin)",
+      "4. Vao Settings -> Communication -> Fronius Solar API",
+      "5. Bat Solar API, port mac dinh 80",
+      "6. Trong Solar Dashboard, chon protocol Fronius Solar API",
+      "7. Dien IP inverter",
+      "8. Test connection"
+    ],
+    "notes": "Fronius Solar API don gian hon Modbus. Port mac dinh 80 (HTTP)."
+  },
+  {
+    "id": "solaredge-optim",
+    "brand": "SolarEdge",
+    "model": "SE5000H",
+    "power_kw": 5.0,
+    "protocol": "SolarEdge Monitoring API",
+    "default_port": null,
+    "api_endpoint": "https://monitoringapi.solaredge.com",
+    "mqtt_topic_pattern": null,
+    "setup_steps": [
+      "1. Dang ky tai khoan SolarEdge Monitoring Portal",
+      "2. Them inverter bang serial number",
+      "3. Tao API key trong Settings -> API Keys",
+      "4. Trong Solar Dashboard, chon protocol SolarEdge API",
+      "5. Dien API key va Site ID tu SolarEdge Portal",
+      "6. Test connection"
+    ],
+    "notes": "SolarEdge dung cloud API, khong ket noi truc tiep local."
+  },
+  {
+    "id": "generic-modbus",
+    "brand": "Generic",
+    "model": "Modbus TCP Inverter",
+    "power_kw": 5.0,
+    "protocol": "Modbus TCP",
+    "default_port": 502,
+    "api_endpoint": null,
+    "mqtt_topic_pattern": null,
+    "setup_steps": [
+      "1. Ket noi may tinh voi inverter qua Ethernet",
+      "2. Xac dinh IP inverter (thuong in tren mat sau thiet bi)",
+      "3. Ping IP de xac nhan ket noi",
+      "4. Trong Solar Dashboard, chon protocol Modbus TCP",
+      "5. Dien IP inverter, port (mac dinh 502), Device ID (thuong 1)",
+      "6. Test connection",
+      "7. Neu fail, kiem tra Modbus register mapping trong manual"
+    ],
+    "notes": "Generic Modbus can register mapping cu the theo tung hang. Xem manual inverter."
+  }
+]

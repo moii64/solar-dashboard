@@ -8,6 +8,47 @@ from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Any
 
+
+def _load_inverter_catalog() -> List[Dict[str, Any]]:
+    """Load inverter catalog from JSON file (or fall back to built-in minimal set)."""
+    candidates = [
+        os.path.join(os.path.dirname(__file__), "data", "inverter_catalog.json"),
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "backend", "data", "inverter_catalog.json"),
+        os.path.join(os.getcwd(), "backend", "data", "inverter_catalog.json"),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    data = json.load(fh)
+                if isinstance(data, list):
+                    return data
+            except (json.JSONDecodeError, OSError) as exc:
+                logging.getLogger("solar-backend").warning("Failed to load catalog from %s: %s", path, exc)
+    logging.getLogger("solar-backend").warning("Inverter catalog JSON not found; using built-in minimal catalog.")
+    return [
+        {
+            "id": "generic-modbus",
+            "brand": "Generic",
+            "model": "Modbus TCP Inverter",
+            "power_kw": 5.0,
+            "protocol": "Modbus TCP",
+            "default_port": 502,
+            "api_endpoint": None,
+            "mqtt_topic_pattern": None,
+            "setup_steps": [
+                "1. Ket noi may tinh voi inverter qua Ethernet",
+                "2. Xac dinh IP inverter (thuong in tren mat sau thiet bi)",
+                "3. Ping IP de xac nhan ket noi",
+                "4. Trong Solar Dashboard, chon protocol Modbus TCP",
+                "5. Dien IP inverter, port (mac dinh 502), Device ID (thuong 1)",
+                "6. Test connection",
+                "7. Neu fail, kiem tra Modbus register mapping trong manual",
+            ],
+            "notes": "Generic Modbus can register mapping cu the theo tung hang. Xem manual inverter.",
+        }
+    ]
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -60,7 +101,7 @@ except ModuleNotFoundError:
 
 # === Cấu hình ===
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./solar.db")
-ENABLE_BACKGROUND_TELEMETRY = os.getenv("ENABLE_BACKGROUND_TELEMETRY", "1") == "1"
+ENABLE_BACKGROUND_TELEMETRY = os.getenv("ENABLE_BACKGROUND_TELEMETRY", "0") == "1"
 TELEMETRY_INTERVAL_SECONDS = int(os.getenv("TELEMETRY_INTERVAL_SECONDS", "5"))
 ENABLE_MQTT_CONSUMER = os.getenv("ENABLE_MQTT_CONSUMER", "0") == "1"
 MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
@@ -112,6 +153,7 @@ class InverterData(Base):
     temperature = Column(Float, nullable=True)
     error_code = Column(String, nullable=True)
     is_online = Column(Boolean, default=True)
+    source = Column(String, default="unknown")
 
 
 class WeatherObservation(Base):
@@ -191,6 +233,7 @@ class InverterDataResponse(BaseModel):
     temperature: Optional[float]
     error_code: Optional[str]
     is_online: bool
+    source: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -240,6 +283,7 @@ class TelemetryReadingIn(BaseModel):
     temperature: Optional[float] = None
     error_code: Optional[str] = None
     is_online: Optional[bool] = None
+    source: Optional[str] = None
 
 
 class WeatherObservationResponse(BaseModel):
@@ -319,154 +363,8 @@ class InverterCatalogEntry(BaseModel):
     notes: Optional[str] = None
 
 
-# Hardcoded catalog of common inverter models with setup instructions
-# Stored as plain dicts; FastAPI will coerce to InverterCatalogEntry via response_model
-INVERTER_CATALOG: List[Dict[str, Any]] = [
-    {
-        "id": "goodwe-sdt-g2",
-        "brand": "GoodWe",
-        "model": "SDT G2 Series",
-        "power_kw": 5.0,
-        "protocol": "SEMS API",
-        "default_port": 10050,
-        "api_endpoint": "https://semsportal.com/api",
-        "mqtt_topic_pattern": None,
-        "setup_steps": [
-            "1. Đăng ký tài khoản SEMS Portal tại https://semsportal.com",
-            "2. Thêm inverter vào SEMS Portal bằng serial number (mặt sau thiết bị)",
-            "3. Kết nối inverter với mạng internet qua Ethernet hoặc WiFi",
-            "4. Đợi inverter xuất hiện trong SEMS Portal (thường mất 1-5 phút)",
-            "5. Tạo API token trong Settings → API Key",
-            "6. Copy API token vào hệ thống Solar Dashboard",
-            "7. Điền Serial Number và Station ID từ SEMS Portal",
-            "8. Test connection để xác nhận dữ liệu nhận được",
-        ],
-        "notes": "GoodWe SDT G2 hỗ trợ cả Ethernet và WiFi. Nên dùng Ethernet cho độ ổn định cao hơn.",
-    },
-    {
-        "id": "huawei-sun2000",
-        "brand": "Huawei",
-        "model": "SUN2000 Series",
-        "power_kw": 5.0,
-        "protocol": "Modbus TCP",
-        "default_port": 502,
-        "api_endpoint": None,
-        "mqtt_topic_pattern": None,
-        "setup_steps": [
-            "1. Kết nối máy tính với inverter qua Ethernet (cùng mạng LAN)",
-            "2. Mở trình duyệt, truy cập http://192.168.1.1 (default IP inverter)",
-            "3. Login (default: admin/Admin@123)",
-            "4. Vào Settings → Network → Modbus TCP",
-            "5. Bật Modbus TCP, port mặc định 502",
-            "6. Lưu cấu hình và reboot inverter",
-            "7. Trong Solar Dashboard, điền IP inverter và port 502",
-            "8. Điền Device ID (thường là 1)",
-            "9. Test connection để đọc dữ liệu",
-        ],
-        "notes": "Huawei SUN2000 dùng Modbus TCP. Đảm bảo firewall không chặn port 502.",
-    },
-    {
-        "id": "sungrow-sg5ktl",
-        "brand": "Sungrow",
-        "model": "SG5KTL-M / SH5K-20",
-        "power_kw": 5.0,
-        "protocol": "iSolarCloud / MQTT",
-        "default_port": 8899,
-        "api_endpoint": None,
-        "mqtt_topic_pattern": "/solar/{serial}/telemetry",
-        "setup_steps": [
-            "1. Đăng ký tài khoản iSolarCloud tại https://www.isolarcloud.com",
-            "2. Thêm inverter bằng serial number",
-            "3. Cấu hình MQTT broker trong iSolarCloud Settings",
-            "4. Lấy MQTT broker address, port, username, password",
-            "5. Trong Solar Dashboard, chọn protocol MQTT",
-            "6. Điền MQTT broker info: host, port, username, password",
-            "7. Topic pattern: /solar/{serial}/telemetry",
-            "8. Test connection",
-        ],
-        "notes": "Sungrow hỗ trợ cả iSolarCloud API và MQTT. MQTT realtime hơn.",
-    },
-    {
-        "id": "sma-sunny-boy",
-        "brand": "SMA",
-        "model": "Sunny Boy 5.0",
-        "power_kw": 5.0,
-        "protocol": "SMA Speedwire / Modbus",
-        "default_port": 502,
-        "api_endpoint": "https://www.sunnyportal.com",
-        "mqtt_topic_pattern": None,
-        "setup_steps": [
-            "1. Kết nối Sunny WebBox hoặc Sunny Home Manager với inverter",
-            "2. Đăng ký tài khoản Sunny Portal",
-            "3. Thêm WebBox vào Sunny Portal",
-            "4. Trong Solar Dashboard, dùng SMA Speedwire hoặc Modbus TCP",
-            "5. Nếu Modbus: port 502, Device ID = 1",
-            "6. Nếu Sunny Portal API: lấy API key từ Sunny Portal",
-            "7. Test connection",
-        ],
-        "notes": "SMA có nhiều cách kết nối. Sunny WebBox cho độ ổn định cao nhất.",
-    },
-    {
-        "id": "fronius-galvo",
-        "brand": "Fronius",
-        "model": "Galvo / Primo",
-        "power_kw": 5.0,
-        "protocol": "Fronius Solar API / Modbus",
-        "default_port": 502,
-        "api_endpoint": "http://{ip}/solar_api/v1/GetInverterRealtimeData.cgi",
-        "mqtt_topic_pattern": None,
-        "setup_steps": [
-            "1. Kết nối máy tính với inverter qua Ethernet",
-            "2. Truy cập http://192.168.0.1 (default IP)",
-            "3. Login (default: admin)",
-            "4. Vào Settings → Communication → Fronius Solar API",
-            "5. Bật Solar API, port mặc định 80",
-            "6. Trong Solar Dashboard, chọn protocol Fronius Solar API",
-            "7. Điền IP inverter",
-            "8. Test connection",
-        ],
-        "notes": "Fronius Solar API đơn giản hơn Modbus. Port mặc định 80 (HTTP).",
-    },
-    {
-        "id": "solaredge-optim",
-        "brand": "SolarEdge",
-        "model": "SE5000H",
-        "power_kw": 5.0,
-        "protocol": "SolarEdge Monitoring API",
-        "default_port": None,
-        "api_endpoint": "https://monitoringapi.solaredge.com",
-        "mqtt_topic_pattern": None,
-        "setup_steps": [
-            "1. Đăng ký tài khoản SolarEdge Monitoring Portal",
-            "2. Thêm inverter bằng serial number",
-            "3. Tạo API key trong Settings → API Keys",
-            "4. Trong Solar Dashboard, chọn protocol SolarEdge API",
-            "5. Điền API key và Site ID từ SolarEdge Portal",
-            "6. Test connection",
-        ],
-        "notes": "SolarEdge dùng cloud API, không kết nối trực tiếp local.",
-    },
-    {
-        "id": "generic-modbus",
-        "brand": "Generic",
-        "model": "Modbus TCP Inverter",
-        "power_kw": 5.0,
-        "protocol": "Modbus TCP",
-        "default_port": 502,
-        "api_endpoint": None,
-        "mqtt_topic_pattern": None,
-        "setup_steps": [
-            "1. Kết nối máy tính với inverter qua Ethernet",
-            "2. Xác định IP inverter (thường in trên mặt sau thiết bị)",
-            "3. Ping IP để xác nhận kết nối",
-            "4. Trong Solar Dashboard, chọn protocol Modbus TCP",
-            "5. Điền IP inverter, port (mặc định 502), Device ID (thường 1)",
-            "6. Test connection",
-            "7. Nếu fail, kiểm tra Modbus register mapping trong manual",
-        ],
-        "notes": "Generic Modbus cần register mapping cụ thể theo từng hãng. Xem manual inverter.",
-    },
-]
+# Inverter catalog loaded from JSON file (or built-in fallback)
+INVERTER_CATALOG: List[Dict[str, Any]] = _load_inverter_catalog()
 
 
 class ConnectionManager:
@@ -530,6 +428,7 @@ def serialize_reading(reading: InverterData) -> dict:
             "temperature": reading.temperature,
             "error_code": reading.error_code,
             "is_online": reading.is_online,
+            "source": reading.source,
         }
     )
 
@@ -646,6 +545,7 @@ def seed_mock_history(db: Session, inverter_id: int, points: int = 24):
                 temperature=round(28 + solar_factor * 16, 2),
                 error_code=None,
                 is_online=solar_factor > 0.08,
+                source="simulated",
             )
         )
     db.add_all(rows)
@@ -730,6 +630,7 @@ def persist_telemetry(db: Session, inverter: Inverter, payload: TelemetryReading
         temperature=payload.temperature,
         error_code=payload.error_code,
         is_online=is_online,
+        source=payload.source or "http",
     )
 
     inverter.status = "online" if is_online else "offline"
@@ -851,6 +752,7 @@ def ingest_mqtt_payload(message_payload: bytes | str | dict, db: Session) -> Inv
         temperature=payload.get("temperature"),
         error_code=payload.get("error_code"),
         is_online=payload.get("is_online"),
+        source="mqtt",
     )
     return persist_telemetry(db, inverter, telemetry)
 
@@ -961,6 +863,7 @@ def generate_simulated_telemetry(inverter: Inverter) -> TelemetryReadingIn:
         temperature=temperature,
         error_code=None,
         is_online=is_online,
+        source="simulated",
     )
 
 
@@ -1006,12 +909,32 @@ def _ensure_alert_columns():
                 conn.exec_driver_sql(f"ALTER TABLE inverters ADD COLUMN {name} {ddl}")
 
 
+def _ensure_inverter_data_source_column():
+    """Lightweight migration: add source column to legacy `inverter_data` tables."""
+    with engine.begin() as conn:
+        existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(inverter_data)").fetchall()} if is_sqlite else None
+        if existing is None:
+            existing = {
+                row[0]
+                for row in conn.exec_driver_sql(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name='inverter_data'"
+                ).fetchall()
+            }
+        if "source" not in existing:
+            default_ddl = "VARCHAR DEFAULT 'unknown'"
+            conn.exec_driver_sql(f"ALTER TABLE inverter_data ADD COLUMN source {default_ddl}")
+
+
 async def on_startup():
     Base.metadata.create_all(bind=engine)
     try:
         _ensure_alert_columns()
     except Exception as exc:  # pragma: no cover - best-effort migration
         logger.warning("alert column migration skipped: %s", exc)
+    try:
+        _ensure_inverter_data_source_column()
+    except Exception as exc:  # pragma: no cover - best-effort migration
+        logger.warning("inverter_data source column migration skipped: %s", exc)
     app.state.event_loop = asyncio.get_running_loop()
 
     db = SessionLocal()
