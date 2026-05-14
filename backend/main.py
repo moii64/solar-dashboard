@@ -6,7 +6,7 @@ import logging
 import threading
 from contextlib import suppress
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 
 
 def _load_inverter_catalog() -> List[Dict[str, Any]]:
